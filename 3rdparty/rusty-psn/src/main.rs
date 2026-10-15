@@ -41,6 +41,19 @@ struct Args {
     #[cfg(feature = "cli")]
     #[clap(short, long, help = "Target folder to save the downloaded update files to.")]
     destination_path: Option<PathBuf>,
+    #[cfg(feature = "cli")]
+    #[clap(long, help = "Print machine-readable JSON lines instead of the interactive interface.")]
+    json: bool,
+    #[cfg(feature = "cli")]
+    #[clap(long, requires = "json", help = "With --json: only list the available updates, don't download.")]
+    list: bool,
+    #[cfg(feature = "cli")]
+    #[clap(
+        long,
+        requires = "json",
+        help = "With --json: updates to download per title, e.g. BLUS30443:0,2 (index from the list). Titles left out download everything."
+    )]
+    select: Vec<String>,
     #[clap(
         long,
         help = "Disables writing the program's log to a .log file. Don't use if you need help."
@@ -50,7 +63,14 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let _logger_handle = init_log(args.no_log_file);
+
+    // Errors are also printed to stdout, which would break the JSON stream
+    #[cfg(feature = "cli")]
+    let errors_to_stdout = !args.json;
+    #[cfg(not(feature = "cli"))]
+    let errors_to_stdout = true;
+
+    let _logger_handle = init_log(args.no_log_file, errors_to_stdout);
 
     #[cfg(feature = "cli")]
     {
@@ -90,7 +110,7 @@ fn main() {
 }
 
 #[cfg(target_os = "macos")]
-fn init_log(no_log_file: bool) -> LoggerHandle {
+fn init_log(no_log_file: bool, errors_to_stdout: bool) -> LoggerHandle {
     let mut logger = Logger::try_with_str("info").expect("Failed to create logger");
 
     if no_log_file {
@@ -111,13 +131,13 @@ fn init_log(no_log_file: bool) -> LoggerHandle {
     }
 
     logger
-        .duplicate_to_stdout(flexi_logger::Duplicate::Error)
+        .duplicate_to_stdout(if errors_to_stdout { flexi_logger::Duplicate::Error } else { flexi_logger::Duplicate::None })
         .start()
         .expect("Failed to start logger!")
 }
 
 #[cfg(not(target_os = "macos"))]
-fn init_log(no_log_file: bool) -> LoggerHandle {
+fn init_log(no_log_file: bool, errors_to_stdout: bool) -> LoggerHandle {
     let mut logger = Logger::try_with_str("info").expect("Failed to create logger");
 
     if no_log_file {
@@ -127,7 +147,7 @@ fn init_log(no_log_file: bool) -> LoggerHandle {
     }
 
     logger
-        .duplicate_to_stdout(flexi_logger::Duplicate::Error)
+        .duplicate_to_stdout(if errors_to_stdout { flexi_logger::Duplicate::Error } else { flexi_logger::Duplicate::None })
         .start()
         .expect("Failed to start logger!")
 }

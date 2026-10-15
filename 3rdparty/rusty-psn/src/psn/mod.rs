@@ -237,6 +237,8 @@ pub struct PackageInfo {
     pub manifest_url: String,
     pub offset: u64,
     pub part_number: Option<usize>,
+    // Minimum PS3 firmware, e.g. "03.4000" (RPCS3 Slim)
+    pub system_ver: String,
 }
 
 impl PackageInfo {
@@ -250,6 +252,7 @@ impl PackageInfo {
             manifest_url: String::new(),
             offset: 0,
             part_number: None,
+            system_ver: String::new(),
         }
     }
 

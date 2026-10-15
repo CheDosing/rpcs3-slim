@@ -76,6 +76,12 @@ pub fn parse_response(response: String, info: &mut UpdateInfo) -> Result<(), Par
                                         last.url = value.to_string();
                                     }
                                 }
+                                b"ps3_system_ver" => {
+                                    if let Some(last) = info.packages.last_mut() {
+                                        let value = attribute.unescape_value().map_err(ParseError::XmlParsing)?;
+                                        last.system_ver = value.to_string();
+                                    }
+                                }
                                 b"manifest_url" => {
                                     if let Some(last) = info.packages.last_mut() {
                                         let value = attribute.unescape_value().map_err(ParseError::XmlParsing)?;
@@ -140,6 +146,12 @@ pub fn parse_response(response: String, info: &mut UpdateInfo) -> Result<(), Par
                                 if let Some(last) = info.packages.last_mut() {
                                     let value = attribute.unescape_value().map_err(ParseError::XmlParsing)?;
                                     last.url = value.to_string();
+                                }
+                            }
+                            b"ps3_system_ver" => {
+                                if let Some(last) = info.packages.last_mut() {
+                                    let value = attribute.unescape_value().map_err(ParseError::XmlParsing)?;
+                                    last.system_ver = value.to_string();
                                 }
                             }
                             _ => {}

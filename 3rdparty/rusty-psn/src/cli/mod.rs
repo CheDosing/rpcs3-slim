@@ -9,7 +9,15 @@ use tokio::runtime::Runtime;
 use crate::psn::*;
 use crate::Args;
 
+mod json;
+
 pub fn start_app(args: Args) {
+    if args.json {
+        let destination_path = args.destination_path.unwrap_or_else(|| PathBuf::from("pkgs/"));
+        json::run(args.titles, destination_path, args.list, args.select);
+        return;
+    }
+
     let runtime = Runtime::new().unwrap();
 
     let _guard = runtime.enter();
