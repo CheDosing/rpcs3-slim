@@ -12,6 +12,7 @@
 #include "log_frame.h"
 #include "settings_dialog.h"
 #include "rpcn_settings_dialog.h"
+#include "game_update_dialog.h"
 #include "clans_settings_dialog.h"
 #include "auto_pause_settings_dialog.h"
 #include "cg_disasm_window.h"
@@ -53,6 +54,7 @@
 #include "guest_memory_dumper.h"
 
 #include <thread>
+#include <set>
 #include <unordered_set>
 
 #include <QScreen>
@@ -4123,6 +4125,37 @@ void main_window::ApplyLiteUi()
 
 	// Make the firmware actions easy to find
 	ui->createFirmwareCacheAct->setText(tr("Precompile Firmware Modules (PPU)"));
+
+	// Game Update Downloader at the top of the Utilities (tools) menu
+	QAction* game_update_act = new QAction(tr("Game Update Downloader..."), this);
+	game_update_act->setToolTip(tr("Download and install official title updates from the PS3 update server"));
+	QAction* first_utility = ui->menuUtilities->actions().isEmpty() ? nullptr : ui->menuUtilities->actions().constFirst();
+	ui->menuUtilities->insertAction(first_utility, game_update_act);
+	ui->menuUtilities->insertSeparator(first_utility);
+	connect(game_update_act, &QAction::triggered, this, [this]() { ShowGameUpdateDialog(); });
+}
+
+void main_window::ShowGameUpdateDialog(const std::string& serial)
+{
+	std::vector<game_update_dialog::title_entry> titles;
+	std::set<std::string> seen;
+
+	if (m_game_list_frame)
+	{
+		for (const game_info& game : m_game_list_frame->GetGameInfo())
+		{
+			// Only PS3 titles have patches on the PS3 update server (4 letters + 5 digits)
+			if (!game || game->serial.size() != 9 || !seen.insert(game->serial).second)
+			{
+				continue;
+			}
+
+			titles.push_back({ game->serial, game->name, game->app_ver });
+		}
+	}
+
+	game_update_dialog* dlg = new game_update_dialog(this, titles, serial, this);
+	dlg->open();
 }
 
 void main_window::CreateFirmwareCache()

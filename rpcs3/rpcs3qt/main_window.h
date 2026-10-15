@@ -74,6 +74,7 @@ public:
 	void OnMissingFw();
 	static bool InstallPackages(main_window* mw, QStringList file_paths = {}, bool from_boot = false, bool from_optical_drive = false);
 	static void InstallPup(main_window* mw, QString file_path = "");
+	void ShowGameUpdateDialog(const std::string& serial = {}); // RPCS3 Lite
 
 Q_SIGNALS:
 	void RequestLanguageChange(const QString& language);

@@ -13,6 +13,7 @@
 #include "persistent_settings.h"
 #include "config_database.h"
 #include "config_checker.h"
+#include "main_window.h"
 
 #include "Utilities/File.h"
 #include "Emu/system_utils.hpp"
@@ -195,6 +196,17 @@ void game_list_context_menu::show_single_selection_context_menu(const game_info&
 
 	// Create LLVM cache
 	QAction* create_cpu_cache = addAction(tr("&Create LLVM Cache"));
+
+	// RPCS3 Lite: official title updates
+	QAction* check_updates = addAction(tr("Check for &Game Updates..."));
+	check_updates->setEnabled(gameinfo->serial.size() == 9);
+	connect(check_updates, &QAction::triggered, m_game_list_frame, [frame = m_game_list_frame, serial = gameinfo->serial]()
+	{
+		if (main_window* mw = qobject_cast<main_window*>(frame->window()))
+		{
+			mw->ShowGameUpdateDialog(serial);
+		}
+	});
 
 	// Remove menu
 	QMenu* remove_menu = addMenu(tr("&Remove"));

@@ -17,6 +17,7 @@ add_library(rpcs3_ui STATIC
     config_database.cpp
     content_integrity.cpp
     curl_handle.cpp
+    game_update_dialog.cpp
     custom_dialog.cpp
     custom_table_widget_item.cpp
     debugger_add_bp_window.cpp

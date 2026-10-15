@@ -882,6 +882,9 @@
     <ClCompile Include="rpcs3qt\curl_handle.cpp">
       <Filter>Gui\network</Filter>
     </ClCompile>
+    <ClCompile Include="rpcs3qt\game_update_dialog.cpp">
+      <Filter>Gui\network</Filter>
+    </ClCompile>
     <ClCompile Include="rpcs3qt\downloader.cpp">
       <Filter>Gui\network</Filter>
     </ClCompile>
@@ -1446,6 +1449,9 @@
       <Filter>Generated Files</Filter>
     </ClInclude>
     <ClInclude Include="rpcs3qt\curl_handle.h">
+      <Filter>Gui\network</Filter>
+    </ClInclude>
+    <ClInclude Include="rpcs3qt\game_update_dialog.h">
       <Filter>Gui\network</Filter>
     </ClInclude>
     <ClInclude Include="Input\dualsense_pad_handler.h">
