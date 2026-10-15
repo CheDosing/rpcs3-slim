@@ -12,7 +12,7 @@ A slimmed-down, offline-only build of [RPCS3](https://github.com/RPCS3/rpcs3) fo
 | CRT filter | `Configuration → GPU → Output Scaling → CRT (Scanlines)`: scanlines, slot mask, soft vignette. One cheap fragment pass, works on Vulkan and OpenGL. |
 | Controllers | `Configuration → Pads → Auto-Detect`: picks a connected DualSense first, then an Xbox pad (XInput), then any SDL pad. |
 | Precompile | Toolbar **Precompile** button builds PPU + SPU LLVM caches for everything in the game list (tick the box to include the firmware UI). `File → Firmware → Precompile Firmware Modules (PPU)` builds firmware caches alone (also runs automatically after installing firmware). |
-| Game updates | `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) runs the bundled [rusty-psn](https://github.com/RainbowCookie32/rusty-psn) CLI in a console window: pick the updates, it downloads and verifies them, then RPCS3 Lite installs every downloaded PKG automatically. Files are kept in `cache/game_updates/`. |
+| Game updates | `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) opens the Game Update Downloader. Pick one game, all games in your list, or type Title IDs. It lists every update with its size and required firmware, marks the ones already installed, and shows download and verification progress for each. Ticked updates install automatically when they finish. The bundled [rusty-psn](https://github.com/RainbowCookie32/rusty-psn) CLI does the downloading, hidden in the background. Files are kept in `cache/game_updates/`. |
 | Defaults | Shader Mode = Async (recompiler only, lighter on weak GPUs), hover GIFs off, update checks off. |
 
 ## Quick start

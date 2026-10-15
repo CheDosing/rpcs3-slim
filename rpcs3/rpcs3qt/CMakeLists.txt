@@ -42,6 +42,7 @@ add_library(rpcs3_ui STATIC
     game_list_context_menu.cpp
     game_list_delegate.cpp
     game_list_frame.cpp
+    game_update_dialog.cpp
     game_list_grid.cpp
     game_list_grid_item.cpp
     game_list_table.cpp
