@@ -175,6 +175,13 @@ pad_settings_dialog::pad_settings_dialog(std::shared_ptr<gui_settings> gui_setti
 	// Refresh Button
 	connect(ui->b_refresh, &QPushButton::clicked, this, &pad_settings_dialog::RefreshHandlers);
 
+	// RPCS3 Lite: one-click DualSense / Xbox controller detection
+	QPushButton* b_auto_detect = new QPushButton(tr("Auto-Detect"), this);
+	b_auto_detect->setAutoDefault(false);
+	b_auto_detect->setToolTip(tr("Finds a connected DualSense, Xbox (XInput) or other SDL-compatible controller and selects it for this player."));
+	ui->gb_handlers_layout->addWidget(b_auto_detect);
+	connect(b_auto_detect, &QPushButton::clicked, this, [this]() { AutoDetectController(false); });
+
 	ui->chooseClass->addItem(tr("Standard (Pad)"),     u32{CELL_PAD_PCLASS_TYPE_STANDARD});
 	ui->chooseClass->addItem(tr("Guitar"),             u32{CELL_PAD_PCLASS_TYPE_GUITAR});
 	ui->chooseClass->addItem(tr("Drum"),               u32{CELL_PAD_PCLASS_TYPE_DRUM});
@@ -2117,6 +2124,92 @@ void pad_settings_dialog::RemoveConfigFile()
 	}
 
 	QMessageBox::information(this, tr("Removed Configuration"), tr("Removed configuration '%0'.\nThe selected configuration is now '%1'.").arg(q_config_to_remove).arg(active_config_file));
+}
+
+bool pad_settings_dialog::AutoDetectController(bool silent)
+{
+	// Preference order: native DualSense first (full features: gyro, LEDs, adaptive triggers info),
+	// then Xbox controllers via XInput on Windows, then anything SDL knows about, then older Sony pads.
+	const std::vector<pad_handler> order =
+	{
+		pad_handler::dualsense,
+#ifdef _WIN32
+		pad_handler::xinput,
+#endif
+#ifdef HAVE_SDL3
+		pad_handler::sdl,
+#endif
+		pad_handler::ds4,
+		pad_handler::ds3,
+	};
+
+	const u32 player_id = GetPlayerIndex();
+
+	if (GetIsLddPad(player_id))
+	{
+		return false;
+	}
+
+	for (const pad_handler type : order)
+	{
+		const QString q_handler = QString::fromStdString(fmt::format("%s", type));
+		const int handler_index = ui->chooseHandler->findData(QVariant(q_handler));
+
+		if (handler_index < 0)
+		{
+			continue;
+		}
+
+		std::shared_ptr<PadHandlerBase> probe = pad_thread::GetHandler(type);
+
+		if (!probe || !probe->Init())
+		{
+			continue;
+		}
+
+		for (const pad_list_entry& entry : probe->list_devices())
+		{
+			if (entry.is_buddy_only)
+			{
+				continue;
+			}
+
+			if (probe->get_next_button_press(entry.name, nullptr, nullptr, PadHandlerBase::gui_call_type::get_connection, {}) == PadHandlerBase::connection::disconnected)
+			{
+				continue;
+			}
+
+			cfg_log.notice("Auto-detect: player %d -> handler '%s', device '%s'", player_id + 1, q_handler.toStdString(), entry.name);
+
+			// Release the probe before the dialog creates its own handler instance for the same device
+			probe.reset();
+
+			g_cfg_input.player[player_id]->device.from_string(entry.name);
+
+			if (ui->chooseHandler->currentIndex() == handler_index)
+			{
+				ChangeHandler();
+			}
+			else
+			{
+				ui->chooseHandler->setCurrentIndex(handler_index); // triggers ChangeHandler
+			}
+
+			if (!silent)
+			{
+				QMessageBox::information(this, tr("Controller detected"), tr("Player %0 is now using:\n%1").arg(player_id + 1).arg(QString::fromStdString(entry.name)));
+			}
+
+			return true;
+		}
+	}
+
+	if (!silent)
+	{
+		QMessageBox::warning(this, tr("No controller found"), tr("No DualSense or Xbox controller is connected.\nPlug it in (USB or Bluetooth), wait a few seconds and press Auto-Detect again."));
+	}
+
+	return false;
 }
 
 void pad_settings_dialog::RefreshHandlers()

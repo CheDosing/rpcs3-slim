@@ -293,6 +293,21 @@ void init_fxo_for_exec(utils::serial* ar, bool full = false)
 // Some settings are not allowed with certain conditions
 static void fixup_settings(const psf::registry* _psf)
 {
+	// RPCS3 Lite: offline-only build. RPCN / internet / UPnP are never enabled, even if a config file asks for it.
+	if (g_cfg.net.psn_status == np_psn_status::psn_rpcn)
+	{
+		sys_log.warning("RPCS3 Lite: RPCN is not available in this build. PSN status forced to '%s'.", np_psn_status::disabled);
+		g_cfg.net.psn_status.set(np_psn_status::disabled);
+	}
+
+	if (g_cfg.net.net_active != np_internet_status::disabled)
+	{
+		sys_log.warning("RPCS3 Lite: Internet access is not available in this build and has been disabled.");
+		g_cfg.net.net_active.set(np_internet_status::disabled);
+	}
+
+	g_cfg.net.upnp_enabled.set(false);
+
 	// Disable some incompatible settings in headless mode
 	if (Emu.IsHeadless())
 	{

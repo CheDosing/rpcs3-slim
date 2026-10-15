@@ -405,9 +405,6 @@ void GLGSRender::flip(const rsx::display_flip_info_t& info)
 			case output_scaling_mode::nearest:
 				m_upscaler = std::make_unique<gl::nearest_upscale_pass>();
 				break;
-			case output_scaling_mode::fsr:
-				m_upscaler = std::make_unique<gl::fsr_upscale_pass>();
-				break;
 			case output_scaling_mode::bilinear:
 			default:
 				m_upscaler = std::make_unique<gl::bilinear_upscale_pass>();
@@ -415,7 +412,9 @@ void GLGSRender::flip(const rsx::display_flip_info_t& info)
 			}
 		}
 
-		if (!backbuffer_has_alpha && use_full_rgb_range_output && rsx::fcmp(avconfig.gamma, 1.f) && !avconfig.stereo_enabled)
+		const bool crt_enabled = (m_output_scaling == output_scaling_mode::crt);
+
+		if (!crt_enabled && !backbuffer_has_alpha && use_full_rgb_range_output && rsx::fcmp(avconfig.gamma, 1.f) && !avconfig.stereo_enabled)
 		{
 			// Blit source image to the screen
 			m_upscaler->scale_output(cmd, image_to_flip, screen_area, aspect_ratio.flipped_vertical(), UPSCALE_AND_COMMIT | UPSCALE_DEFAULT_VIEW);
@@ -427,17 +426,8 @@ void GLGSRender::flip(const rsx::display_flip_info_t& info)
 			const auto filter = m_output_scaling == output_scaling_mode::nearest ? gl::filter::nearest : gl::filter::linear;
 			rsx::simple_array<gl::texture*> images{ image_to_flip, image_to_flip2 };
 
-			if (m_output_scaling == output_scaling_mode::fsr && !avconfig.stereo_enabled) // 3D will be implemented later
-			{
-				for (unsigned i = 0; i < 2 && images[i]; ++i)
-				{
-					const rsx::flags32_t mode = (i == 0) ? UPSCALE_LEFT_VIEW : UPSCALE_RIGHT_VIEW;
-					images[i] = m_upscaler->scale_output(cmd, image_to_flip, screen_area, aspect_ratio.flipped_vertical(), mode);
-				}
-			}
-
 			gl::screen.bind();
-			m_video_output_pass.run(cmd, areau(aspect_ratio), images.map(FN(x ? x->id() : GL_NONE)), gamma, limited_range, avconfig.stereo_enabled, filter);
+			m_video_output_pass.run(cmd, areau(aspect_ratio), images.map(FN(x ? x->id() : GL_NONE)), gamma, limited_range, avconfig.stereo_enabled, filter, crt_enabled);
 		}
 	}
 

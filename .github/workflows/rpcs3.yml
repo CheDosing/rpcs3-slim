@@ -3,11 +3,8 @@ name: Build RPCS3
 defaults:
   run:
     shell: bash
+# RPCS3 Lite: upstream multi-platform pipeline is manual-only in this fork; see rpcs3-lite.yml
 on:
-  push:
-    branches:
-      - master # Only trigger push event on 'master' branch
-  pull_request:
   workflow_dispatch:
 
 concurrency:

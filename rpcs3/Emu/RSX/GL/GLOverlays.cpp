@@ -511,7 +511,7 @@ namespace gl
 	}
 
 	void video_out_calibration_pass::run(gl::command_context& cmd, const areau& viewport, const rsx::simple_array<GLuint>& source, f32 gamma, bool limited_rgb,
-		bool stereo_enabled, gl::filter input_filter)
+		bool stereo_enabled, gl::filter input_filter, bool crt_enabled)
 	{
 		if (m_input_filter != input_filter)
 		{
@@ -530,6 +530,7 @@ namespace gl
 		program_handle.uniforms["stereo_image_count"] = (source[1] == GL_NONE ? 1 : 2);
 		program_handle.uniforms["left_anaglyph_matrix"] = matrices.left;
 		program_handle.uniforms["right_anaglyph_matrix"] = matrices.right;
+		program_handle.uniforms["crt_enabled"] = crt_enabled ? 1 : 0;
 
 		saved_sampler_state saved(GL_TEMP_IMAGE_SLOT(0), m_sampler);
 		cmd->bind_texture(GL_TEMP_IMAGE_SLOT(0), GL_TEXTURE_2D, source[0]);

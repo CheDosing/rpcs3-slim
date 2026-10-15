@@ -116,6 +116,7 @@ private Q_SLOTS:
 	void OnPadButtonClicked(int id);
 	void OnTabChanged(int index);
 	void RefreshHandlers();
+	bool AutoDetectController(bool silent); // RPCS3 Lite
 	void ChangeHandler();
 	void ChangeConfig(const QString& config_file);
 	void ChangeDevice(int index);

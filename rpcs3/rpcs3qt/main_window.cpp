@@ -100,7 +100,8 @@
 #include "raw_mouse_settings_dialog.h"
 #endif
 
-#if defined(__linux__) || defined(__APPLE__) || (defined(_WIN32) && defined(ARCH_X64))
+// RPCS3 Lite: the upstream auto-updater would replace this build with stock RPCS3, so it is disabled.
+#if 0
 #define RPCS3_UPDATE_SUPPORTED
 #endif
 
@@ -212,9 +213,10 @@ void main_window::Init()
 	CreateActions();
 	CreateDockWindows();
 	CreateConnects();
+	ApplyLiteUi();
 
 	setMinimumSize(350, minimumSizeHint().height());    // seems fine on win 10
-	setWindowTitle(QString::fromStdString("RPCS3 " + rpcs3::get_verbose_version()));
+	setWindowTitle(QString::fromStdString("RPCS3 Lite " + rpcs3::get_verbose_version()));
 
 	Q_EMIT RequestGlobalStylesheetChange();
 	ConfigureGuiFromSettings();
@@ -1924,7 +1926,7 @@ void main_window::RepaintToolBarIcons()
 	ui->toolbar_grid    ->setIcon(icon(":/Icons/grid.png"));
 	ui->toolbar_list    ->setIcon(icon(":/Icons/list.png"));
 	ui->toolbar_refresh ->setIcon(icon(":/Icons/refresh.png"));
-	ui->toolbar_rpcn	->setIcon(icon(":/Icons/rpcn.png"));
+	ui->toolbar_rpcn	->setIcon(icon(":/Icons/restart.png")); // RPCS3 Lite: "Precompile" action
 	ui->toolbar_stop    ->setIcon(icon(":/Icons/stop.png"));
 
 	ui->sysStopAct->setIcon(icon(":/Icons/stop.png"));
@@ -3699,7 +3701,11 @@ void main_window::CreateConnects()
 
 	connect(ui->toolbar_config, &QAction::triggered, this, [=]() { open_settings(0); });
 	connect(ui->toolbar_controls, &QAction::triggered, this, open_pad_settings);
-	connect(ui->toolbar_rpcn, &QAction::triggered, this, open_rpcn_settings);
+	// RPCS3 Lite: the former RPCN toolbar slot is now "Precompile" (PPU/SPU LLVM caches for all titles + optional VSH)
+	connect(ui->toolbar_rpcn, &QAction::triggered, this, [this]()
+	{
+		m_game_list_frame->actions()->BatchCreateCPUCaches({}, false, true);
+	});
 	connect(ui->toolbar_list, &QAction::triggered, this, [this]() { ui->setListModeAct->trigger(); });
 	connect(ui->toolbar_grid, &QAction::triggered, this, [this]() { ui->setGridModeAct->trigger(); });
 
@@ -4074,6 +4080,49 @@ void main_window::RemoveFirmwareCache()
 		gui_log.fatal("Only %d/%d firmware caches could be removed in %s", caches_removed, caches_total, cache_dir);
 
 	return;
+}
+
+void main_window::ApplyLiteUi()
+{
+	// RPCS3 Lite: offline-only, minimal interface. Actions are hidden (not deleted) so upstream code stays untouched.
+	const auto hide = [](QAction* act)
+	{
+		if (act)
+		{
+			act->setVisible(false);
+			act->setEnabled(false);
+		}
+	};
+
+	// Online / RPCN
+	hide(ui->confRPCNAct);
+	hide(ui->confClansAct);
+	hide(ui->confNetwrkAct);
+
+	// Updater and online databases
+	hide(ui->updateAct);
+	hide(ui->downloadCompatDbAct);
+	hide(ui->downloadIntegrityDbAct);
+	hide(ui->downloadConfigDbAct);
+	hide(ui->menuUpdate_Available->menuAction());
+	hide(ui->supportAct);
+	hide(ui->welcomeAct);
+
+	// Non-essential extras
+	hide(ui->bigPictureModeAct);
+	hide(ui->menuPortals->menuAction());
+	hide(ui->playHoverGifsAct);
+	m_gui_settings->SetValue(gui::gl_hover_gifs, false);
+	m_gui_settings->SetValue(gui::m_check_upd_start, gui::update_off);
+
+	// Former RPCN toolbar button becomes "Precompile"
+	ui->toolbar_rpcn->setText(tr("Precompile"));
+	ui->toolbar_rpcn->setToolTip(tr("Precompile PPU/SPU LLVM caches for every title in the list (and optionally the firmware UI) so homebrew boots faster"));
+	ui->toolbar_rpcn->setVisible(true);
+	ui->toolbar_rpcn->setEnabled(true);
+
+	// Make the firmware actions easy to find
+	ui->createFirmwareCacheAct->setText(tr("Precompile Firmware Modules (PPU)"));
 }
 
 void main_window::CreateFirmwareCache()

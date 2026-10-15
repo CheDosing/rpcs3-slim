@@ -115,6 +115,9 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 		ui->buttonBox->button(QDialogButtonBox::StandardButton::Save)->setText(tr("Save custom configuration", "Settings dialog"));
 	}
 
+	// RPCS3 Lite: offline-only build, the Network/PSN/RPCN tab is hidden (tab indices stay intact).
+	ui->tab_widget_settings->setTabVisible(ui->tab_widget_settings->indexOf(ui->networkTab), false);
+
 	// Localized tooltips
 	const Tooltips tooltips;
 
@@ -863,8 +866,9 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 	const auto apply_fsr_specific_options = [this]()
 	{
 		const auto [text, value] = get_data(ui->outputScalingMode, ui->outputScalingMode->currentIndex());
-		const bool fsr_selected = static_cast<output_scaling_mode>(value) == output_scaling_mode::fsr;
-		ui->fsrSharpeningStrengthWidget->setVisible(fsr_selected);
+		Q_UNUSED(text);
+		Q_UNUSED(value);
+		ui->fsrSharpeningStrengthWidget->setVisible(false); // RPCS3 Lite: FSR removed
 	};
 
 	// Handle connects to disable specific checkboxes that depend on GUI state.
@@ -1720,6 +1724,7 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 
 	EnhanceCheckBox(emu_settings_type::ShowTrophyPopups, ui->showTrophyPopups, tooltips.settings.show_trophy_popups);
 	EnhanceCheckBox(emu_settings_type::ShowRpcnPopups, ui->showRpcnPopups, tooltips.settings.show_rpcn_popups);
+	ui->showRpcnPopups->setVisible(false); // RPCS3 Lite: no RPCN
 	EnhanceCheckBox(emu_settings_type::UseNativeInterface, ui->useNativeInterface, tooltips.settings.use_native_interface);
 	EnhanceCheckBox(emu_settings_type::UseRecursiveScan, ui->useRecursiveScan, tooltips.settings.use_recursive_scan);
 
@@ -2176,6 +2181,7 @@ settings_dialog::settings_dialog(std::shared_ptr<gui_settings> gui_settings, std
 		{
 			if (index >= 0) m_gui_settings->SetValue(gui::m_check_upd_start, ui->combo_updates->itemData(index));
 		});
+		ui->gb_updates->setVisible(false); // RPCS3 Lite: updater disabled
 
 		const bool enable_ui_colors = m_gui_settings->GetValue(gui::m_enableUIColors).toBool();
 		ui->cb_custom_colors->setChecked(enable_ui_colors);

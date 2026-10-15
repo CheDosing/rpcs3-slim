@@ -133,6 +133,7 @@ private:
 	void RepaintToolBarIcons();
 	void CreateActions();
 	void CreateConnects();
+	void ApplyLiteUi();
 	void CreateDockWindows();
 	void EnableMenus(bool enabled) const;
 	void ShowTitleBars(bool show) const;

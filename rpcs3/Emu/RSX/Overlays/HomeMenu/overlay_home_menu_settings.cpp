@@ -161,7 +161,6 @@ namespace rsx
 			add_unsigned_slider(&g_cfg.video.anisotropic_level_override, localized_string_id::HOME_MENU_SETTINGS_VIDEO_ANISOTROPIC_OVERRIDE, "x", 2, {{0, "Auto"}}, {14});
 
 			add_dropdown(&g_cfg.video.output_scaling, localized_string_id::HOME_MENU_SETTINGS_VIDEO_OUTPUT_SCALING);
-			add_unsigned_slider(&g_cfg.video.rcas_sharpening_intensity, localized_string_id::HOME_MENU_SETTINGS_VIDEO_RCAS_SHARPENING, " %", 1);
 
 			add_checkbox(&g_cfg.video.stretch_to_display_area, localized_string_id::HOME_MENU_SETTINGS_VIDEO_STRETCH_TO_DISPLAY);
 

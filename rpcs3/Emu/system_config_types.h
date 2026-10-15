@@ -354,7 +354,7 @@ enum class output_scaling_mode
 {
 	nearest,
 	bilinear,
-	fsr
+	crt // RPCS3 Lite: CRT scanline output filter (replaces FSR upscaling)
 };
 
 enum class stereo_render_mode_options

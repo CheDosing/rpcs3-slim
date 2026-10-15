@@ -40,6 +40,10 @@ layout(push_constant) uniform static_data
 	int stereo_image_count;
 	mat3 left_anaglyph_matrix;
 	mat3 right_anaglyph_matrix;
+	int crt_enabled;
+	int crt_reserved0;
+	int crt_reserved1;
+	int crt_reserved2;
 };
 #else
 uniform float gamma;
@@ -48,7 +52,34 @@ uniform int stereo_display_mode;
 uniform int stereo_image_count;
 uniform mat3 left_anaglyph_matrix;
 uniform mat3 right_anaglyph_matrix;
+uniform int crt_enabled;
 #endif
+
+// RPCS3 Lite: lightweight CRT filter (scanlines + aperture mask + vignette).
+// One extra fragment pass worth of ALU, no extra texture fetches.
+vec3 apply_crt(vec3 color)
+{
+	// Number of emulated scanlines: one per source row, but never fewer than 3 output pixels per line
+	// so that non-integer window sizes do not produce moire patterns.
+	const float src_lines = float(textureSize(fs0, 0).y);
+	const float out_lines = 1.0 / max(abs(dFdy(tc0.y)), 1e-6);
+	const float lines = min(src_lines, out_lines / 3.0);
+
+	const float f = fract(tc0.y * lines) - 0.5;
+	const float lum = dot(color, vec3(0.299, 0.587, 0.114));
+	const float beam = 0.22 + 0.16 * lum; // brighter pixels bloom into wider beams
+	const float scan = mix(0.40, 1.0, exp(-(f * f) / (2.0 * beam * beam)));
+
+	// Slot-mask style RGB triads in screen space
+	vec3 mask = vec3(0.86);
+	mask[int(gl_FragCoord.x) % 3] = 1.12;
+
+	// Soft vignette
+	const vec2 v = tc0 * (1.0 - tc0.yx);
+	const float vig = clamp(pow(v.x * v.y * 15.0, 0.20), 0.0, 1.0);
+
+	return clamp(color * scan * mask * vig * 1.22, 0.0, 1.0);
+}
 
 vec3 applyMatrix(vec3 left, vec3 right)
 {
@@ -151,6 +182,10 @@ void main()
 {
 	vec4 color = read_source();
 	color.rgb = pow(color.rgb, vec3(gamma));
+	if (crt_enabled != FALSE)
+	{
+		color.rgb = apply_crt(color.rgb);
+	}
 	ocol = (limit_range == FALSE)
 		? color
 		: ((color * 220.) + 16.) / 255.;

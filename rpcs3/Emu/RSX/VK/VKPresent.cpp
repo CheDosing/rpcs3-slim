@@ -811,10 +811,6 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
 		{
 			m_upscaler = std::make_unique<vk::nearest_upscale_pass>();
 		}
-		else if (m_output_scaling == output_scaling_mode::fsr)
-		{
-			m_upscaler = std::make_unique<vk::fsr_upscale_pass>();
-		}
 		else
 		{
 			m_upscaler = std::make_unique<vk::bilinear_upscale_pass>();
@@ -825,29 +821,12 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
 	{
 		const bool use_full_rgb_range_output = g_cfg.video.full_rgb_range_output.get();
 
-		if (!use_full_rgb_range_output || !rsx::fcmp(avconfig.gamma, 1.f) || avconfig.stereo_enabled) [[unlikely]]
+		const bool crt_enabled = (m_output_scaling == output_scaling_mode::crt);
+
+		if (crt_enabled || !use_full_rgb_range_output || !rsx::fcmp(avconfig.gamma, 1.f) || avconfig.stereo_enabled) [[unlikely]]
 		{
 			if (image_to_flip) calibration_src.push_back(image_to_flip);
 			if (image_to_flip2) calibration_src.push_back(image_to_flip2);
-
-			if (m_output_scaling == output_scaling_mode::fsr && !avconfig.stereo_enabled) // 3D will be implemented later
-			{
-				// Run upscaling pass before the rest of the output effects pipeline
-				// This can be done with all upscalers but we already get bilinear upscaling for free if we just out the filters directly
-				VkImageBlit request = {};
-				request.srcSubresource = { image_to_flip->aspect(), 0, 0, 1 };
-				request.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-				request.srcOffsets[0] = { 0, 0, 0 };
-				request.srcOffsets[1] = { s32(buffer_width), s32(buffer_height), 1 };
-				request.dstOffsets[0] = { 0, 0, 0 };
-				request.dstOffsets[1] = { aspect_ratio.width(), aspect_ratio.height(), 1 };
-
-				for (unsigned i = 0; i < calibration_src.size(); ++i)
-				{
-					const rsx::flags32_t mode = (i == 0) ? UPSCALE_LEFT_VIEW : UPSCALE_RIGHT_VIEW;
-					calibration_src[i] = m_upscaler->scale_output(*m_current_command_buffer, image_to_flip, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, request, mode);
-				}
-			}
 
 			vk::change_image_layout(*m_current_command_buffer, target_image, target_layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, subresource_range);
 			target_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -861,7 +840,7 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
 
 			vk::get_overlay_pass<vk::video_out_calibration_pass>()->run(
 				*m_current_command_buffer, areau(aspect_ratio), direct_fbo, calibration_src,
-				avconfig.gamma, !use_full_rgb_range_output, avconfig.stereo_enabled, single_target_pass);
+				avconfig.gamma, !use_full_rgb_range_output, avconfig.stereo_enabled, single_target_pass, crt_enabled);
 
 			direct_fbo->release();
 		}

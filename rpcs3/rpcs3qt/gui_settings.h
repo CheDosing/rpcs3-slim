@@ -240,7 +240,7 @@ namespace gui
 	const gui_save gl_draw_compat  = gui_save(game_list, "draw_compat",  false);
 	const gui_save gl_pref_gd_icon = gui_save(game_list, "pref_gd_icon", false);
 	const gui_save gl_custom_icon  = gui_save(game_list, "custom_icon",  true);
-	const gui_save gl_hover_gifs   = gui_save(game_list, "hover_gifs",   true);
+	const gui_save gl_hover_gifs   = gui_save(game_list, "hover_gifs",   false); // RPCS3 Lite: off by default (RAM/CPU)
 	const gui_save gl_hover_music  = gui_save(game_list, "hover_music",  true);
 
 	const gui_save gc_collections = gui_save(game_collection, "collections", QStringList());
@@ -282,7 +282,7 @@ namespace gui
 	const gui_save m_enableUIColors    = gui_save(meta, "enableUIColors",    false);
 	const gui_save m_richPresence      = gui_save(meta, "useRichPresence",   true);
 	const gui_save m_discordState      = gui_save(meta, "discordState",      "");
-	const gui_save m_check_upd_start   = gui_save(meta, "checkUpdateStart",  update_on);
+	const gui_save m_check_upd_start   = gui_save(meta, "checkUpdateStart",  update_off); // RPCS3 Lite: offline build
 
 	const gui_save gs_disableMouse      = gui_save(gs_frame, "disableMouse",          true);
 	const gui_save gs_disableKbHotkeys  = gui_save(gs_frame, "disableKbHotkeys",      false);

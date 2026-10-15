@@ -217,6 +217,8 @@ namespace vk
 				int   stereo_image_count;
 				color4_base<float> left_anaglyph_matrix[3];
 				color4_base<float> right_anaglyph_matrix[3];
+				int   crt_enabled;
+				int   crt_reserved[3];
 			};
 
 			float data[(
@@ -225,12 +227,14 @@ namespace vk
 				sizeof(stereo_display_mode) +
 				sizeof(stereo_image_count) +
 				sizeof(left_anaglyph_matrix) +
-				sizeof(right_anaglyph_matrix)
+				sizeof(right_anaglyph_matrix) +
+				sizeof(crt_enabled) +
+				sizeof(crt_reserved)
 				) / sizeof(float)];
 		}
 		config = {};
 
-		static constexpr u32 fragment_push_constants_size = 112;
+		static constexpr u32 fragment_push_constants_size = 128;
 
 		video_out_calibration_pass();
 
@@ -240,7 +244,7 @@ namespace vk
 
 		void run(vk::command_buffer& cmd, const areau& viewport, vk::framebuffer* target,
 			const rsx::simple_array<vk::viewable_image*>& src, f32 gamma, bool limited_rgb,
-			bool stereo_enabled, VkRenderPass render_pass);
+			bool stereo_enabled, VkRenderPass render_pass, bool crt_enabled = false);
 	};
 
 	// TODO: Replace with a proper manager
