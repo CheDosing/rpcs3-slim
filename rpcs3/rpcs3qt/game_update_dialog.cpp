@@ -100,17 +100,49 @@ namespace
 		return size * nmemb;
 	}
 
+	// The server's sha1sum is checked against the whole file and, to be safe, also against
+	// the file without its 32-byte PKG footer (which itself carries a SHA-1 of the package body).
+	struct pkg_hasher
+	{
+		QCryptographicHash full{QCryptographicHash::Sha1};
+		QCryptographicHash body{QCryptographicHash::Sha1};
+		std::string tail;
+
+		void add(const char* data, usz len)
+		{
+			full.addData(QByteArrayView(data, static_cast<qsizetype>(len)));
+			tail.append(data, len);
+
+			if (tail.size() > 32)
+			{
+				const usz n = tail.size() - 32;
+				body.addData(QByteArrayView(tail.data(), static_cast<qsizetype>(n)));
+				tail.erase(0, n);
+			}
+		}
+
+		std::string full_hex() const
+		{
+			return full.result().toHex().toStdString();
+		}
+
+		bool matches(const std::string& expected) const
+		{
+			return full_hex() == expected || body.result().toHex().toStdString() == expected;
+		}
+	};
+
 	struct file_download_ctx
 	{
 		fs::file file;
-		QCryptographicHash sha1{QCryptographicHash::Sha1};
+		pkg_hasher hash;
 	};
 
 	size_t write_file_cb(char* ptr, size_t size, size_t nmemb, void* userdata)
 	{
 		auto* ctx = static_cast<file_download_ctx*>(userdata);
 		const usz len = size * nmemb;
-		ctx->sha1.addData(QByteArrayView(ptr, static_cast<qsizetype>(len)));
+		ctx->hash.add(ptr, len);
 		return static_cast<size_t>(ctx->file.write(ptr, len));
 	}
 
@@ -555,14 +587,14 @@ void game_update_dialog::download_and_install()
 			// Reuse a previous complete download if it still matches the expected hash
 			if (fs::is_file(path) && !pkg.sha1.empty())
 			{
-				QCryptographicHash existing(QCryptographicHash::Sha1);
+				pkg_hasher existing;
 				fs::file f(path);
-				std::vector<u8> buf(4 * 1024 * 1024);
+				std::vector<char> buf(4 * 1024 * 1024);
 				u64 read = 0;
 				while (f && (read = f.read(buf.data(), buf.size())) > 0 && !m_cancel)
-					existing.addData(QByteArrayView(reinterpret_cast<const char*>(buf.data()), static_cast<qsizetype>(read)));
+					existing.add(buf.data(), read);
 
-				if (existing.result().toHex().toStdString() == pkg.sha1)
+				if (!m_cancel && existing.matches(pkg.sha1))
 				{
 					game_update_log.notice("Using cached update %s", path);
 					set_row_status(tr("Downloaded"));
@@ -627,9 +659,9 @@ void game_update_dialog::download_and_install()
 				break;
 			}
 
-			const std::string hash = dl.sha1.result().toHex().toStdString();
+			const std::string hash = dl.hash.full_hex();
 
-			if (!pkg.sha1.empty() && hash != pkg.sha1)
+			if (!pkg.sha1.empty() && !dl.hash.matches(pkg.sha1))
 			{
 				fs::remove_file(path);
 				error = fmt::format("Version %s failed verification (SHA-1 %s, expected %s). The file was deleted.", pkg.version, hash, pkg.sha1);
