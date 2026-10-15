@@ -1,0 +1,17 @@
+post_install() {
+  cat <<MSG
+==> RPCS3 Slim is installed. On Omarchy:
+    - It follows your Omarchy theme automatically (Configuration > GUI > Default stylesheet).
+    - Run 'rpcs3-slim-omarchy setup' once to load its Hyprland window rules
+      (opaque game window, no screen blanking in fullscreen, centered dialogs).
+    - Replug your controllers so the new udev rules apply.
+MSG
+}
+
+post_upgrade() {
+  :
+}
+
+pre_remove() {
+  echo "==> Run 'rpcs3-slim-omarchy remove' first if you loaded the Hyprland window rules (they are skipped safely otherwise)."
+}

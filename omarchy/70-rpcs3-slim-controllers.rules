@@ -1,0 +1,9 @@
+# RPCS3 Slim: let the logged-in user open Sony controllers (DualShock 3/4, DualSense, PS Move) directly
+# through hidraw/libusb, which the DualShock and DualSense pad handlers need. 70- so uaccess applies.
+
+# USB
+SUBSYSTEM=="usb", ATTRS{idVendor}=="054c", MODE="0660", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="054c", MODE="0660", TAG+="uaccess"
+
+# Bluetooth
+KERNEL=="hidraw*", KERNELS=="*054C:*", MODE="0660", TAG+="uaccess"

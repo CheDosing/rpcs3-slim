@@ -1,0 +1,46 @@
+name: Build RPCS3 Slim (Omarchy / Arch Linux)
+
+on:
+  push:
+    branches:
+      - omarchy
+  workflow_dispatch:
+
+concurrency:
+  group: omarchy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Arch_Build:
+    name: RPCS3 Slim Omarchy (Arch package)
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    timeout-minutes: 300
+    steps:
+      - name: Prepare build user
+        run: |
+          pacman -Syu --noconfirm --needed git sudo
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build package
+        run: |
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory '*'
+          sudo -u builder env \
+            RPCS3_SLIM_REPO="git+file://$GITHUB_WORKSPACE" \
+            RPCS3_SLIM_BRANCH="$GITHUB_REF_NAME" \
+            RPCS3_SLIM_NATIVE=OFF \
+            bash -c 'cd omarchy && makepkg -s --noconfirm'
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpcs3-slim-omarchy
+          path: omarchy/*.pkg.tar.zst
+          compression-level: 0

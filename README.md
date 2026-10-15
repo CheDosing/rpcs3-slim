@@ -16,7 +16,9 @@ RPCS3 Slim is a lightweight, offline-only build of RPCS3 for testing PS3 homebre
 
   `█████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░ 50%`
 
-  `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) runs the bundled [rusty-psn](https://github.com/RainbowCookie32/rusty-psn) CLI (by RainbowCookie32, MIT) in a console window. Pick the updates there; once it finishes, every downloaded PKG is installed automatically. Downloads are kept in `cache/game_updates/`.
+  `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) opens a native window in the same Mocha style as the rest of the app. It lists every update for a game (or for all games in your list) with its size, required firmware and installed status, and shows per-update download and verification progress. Ticked updates install automatically once they finish. The bundled [rusty-psn](https://github.com/RainbowCookie32/rusty-psn) CLI (by RainbowCookie32, MIT) does the downloading in the background. Downloads are kept in `cache/game_updates/`.
+
+- **Native Omarchy build.** The `omarchy` branch builds an Arch package that follows your Omarchy theme, and ships Hyprland window rules and controller udev rules. See [README-OMARCHY.md](README-OMARCHY.md).
 
 See [README-LITE.md](README-LITE.md) for the full list of changes, a quick-start guide and low-end tuning tips.
 

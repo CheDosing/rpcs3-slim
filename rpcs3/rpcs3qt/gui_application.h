@@ -96,6 +96,8 @@ private:
 
 	void set_language_code(QString language_code);
 
+	void WatchOmarchyTheme();
+
 	class native_event_filter : public QAbstractNativeEventFilter
 	{
 	public:

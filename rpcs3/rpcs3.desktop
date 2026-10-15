@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=RPCS3
+Name=RPCS3 Slim
 GenericName=PlayStation 3 Emulator
-Comment=An open-source PlayStation 3 emulator/debugger written in C++.
+Comment=Lightweight, offline-only PlayStation 3 emulator (RPCS3 fork)
 Icon=rpcs3
 TryExec=rpcs3
 Exec=rpcs3 %f

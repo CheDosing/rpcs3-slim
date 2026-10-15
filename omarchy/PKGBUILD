@@ -1,0 +1,140 @@
+# RPCS3 Slim for Omarchy (Arch Linux + Hyprland)
+#
+#   cd omarchy && makepkg -si
+#
+# Builds the omarchy branch of https://github.com/CheDosing/rpcs3-slim with the bundled rusty-psn CLI.
+# Overrides:
+#   RPCS3_SLIM_REPO=git+file:///path/to/rpcs3-slim   build from a local clone
+#   RPCS3_SLIM_BRANCH=omarchy                        branch to build
+#   RPCS3_SLIM_NATIVE=OFF                            portable build (CI); ON optimizes for this CPU
+
+pkgname=rpcs3-slim-git
+pkgver=0.0.40.r0.0000000
+pkgrel=1
+pkgdesc='Lightweight, offline-only PlayStation 3 emulator (RPCS3 fork) for Omarchy'
+arch=(x86_64)
+url=https://github.com/CheDosing/rpcs3-slim
+license=(GPL-2.0-only MIT)
+depends=(
+  alsa-lib
+  curl
+  ffmpeg
+  glew
+  glu
+  libevdev
+  libgl
+  libice
+  libpng
+  libpulse
+  libsm
+  libx11
+  libxext
+  llvm-libs
+  openal
+  opencv
+  pugixml
+  qt6-base
+  qt6-declarative
+  qt6-multimedia
+  qt6-svg
+  sdl3
+  vulkan-icd-loader
+  wayland
+  zlib
+)
+makedepends=(
+  cargo
+  clang
+  cmake
+  git
+  libglvnd
+  lld
+  llvm
+  ninja
+  python
+  vulkan-headers
+)
+optdepends=(
+  'vulkan-validation-layers: Vulkan debugging'
+  'hyprland: window rules via rpcs3-slim-omarchy setup'
+)
+provides=(rpcs3)
+conflicts=(rpcs3 rpcs3-git rpcs3-bin rpcs3-udev)
+install=rpcs3-slim.install
+options=(!emptydirs !lto !strip !debug)
+source=("rpcs3-slim::${RPCS3_SLIM_REPO:-git+https://github.com/CheDosing/rpcs3-slim.git}#branch=${RPCS3_SLIM_BRANCH:-omarchy}")
+sha256sums=(SKIP)
+
+pkgver() {
+  cd rpcs3-slim
+  local tag
+  tag=$(grep 'version{.*}' rpcs3/rpcs3_version.cpp | awk -F'[{,]' '{printf "%d.%d.%d", $2, $3, $4}')
+  printf '%s.r%s.%s' "$tag" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd rpcs3-slim
+
+  # Submodule URLs are relative to the GitHub remote; point them at GitHub explicitly. Libraries taken from
+  # the system (see build()) are skipped.
+  local submodules i key path url
+  mapfile -t submodules < <(git config --file .gitmodules --get-regexp '\.path$' |
+    awk '!/libpng|zlib|curl|llvm|pugixml|SDL/')
+
+  for i in "${submodules[@]}"; do
+    key=${i%% *}
+    path=${i#* }
+    url=$(git config --file .gitmodules --get "${key%.path}.url" | awk -F/ '{print $(NF-1)"/"$NF}')
+    git config "${key%.path}.url" "https://github.com/$url"
+    git -c protocol.file.allow=always submodule update --init --filter=tree:0 "$path"
+  done
+
+  # rusty-psn (Game Update Downloader): fetch crates now so build() works offline
+  cargo fetch --locked --manifest-path 3rdparty/rusty-psn/Cargo.toml
+}
+
+build() {
+  cd rpcs3-slim
+
+  # _GLIBCXX_ASSERTIONS is known to trigger unwanted assertions and crash rpcs3
+  CXXFLAGS=${CXXFLAGS//-Wp,-D_GLIBCXX_ASSERTIONS/}
+
+  CC=clang CXX=clang++ cmake -S . -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_SKIP_RPATH=ON \
+    -DUSE_NATIVE_INSTRUCTIONS="${RPCS3_SLIM_NATIVE:-ON}" \
+    -DUSE_SYSTEM_FFMPEG=ON \
+    -DUSE_SYSTEM_LIBPNG=ON \
+    -DUSE_SYSTEM_ZLIB=ON \
+    -DUSE_SYSTEM_CURL=ON \
+    -DUSE_SYSTEM_PROTOBUF=OFF \
+    -DUSE_SYSTEM_PUGIXML=ON \
+    -DUSE_SYSTEM_OPENCV=ON \
+    -DUSE_DISCORD_RPC=OFF \
+    -DUSE_SDL=ON \
+    -DUSE_SYSTEM_SDL=ON \
+    -DBUILD_LLVM=OFF \
+    -DUSE_SYSTEM_WOLFSSL=OFF \
+    -DBUILD_RPCS3_TESTS=OFF \
+    -DCMAKE_LINKER=lld \
+    -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS -fuse-ld=lld" \
+    -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS -fuse-ld=lld"
+  cmake --build build
+
+  cargo build --frozen --release --no-default-features --features cli \
+    --manifest-path 3rdparty/rusty-psn/Cargo.toml --target-dir build/rusty-psn
+}
+
+package() {
+  cd rpcs3-slim
+  DESTDIR="$pkgdir" cmake --install build
+
+  install -Dm755 build/rusty-psn/release/rusty-psn "$pkgdir/usr/lib/rpcs3-slim/rusty-psn-cli"
+  install -Dm644 3rdparty/rusty-psn/LICENSE "$pkgdir/usr/share/licenses/$pkgname/rusty-psn-LICENSE"
+
+  install -Dm755 omarchy/rpcs3-slim-omarchy -t "$pkgdir/usr/bin"
+  install -Dm644 omarchy/hypr/rpcs3-slim.lua -t "$pkgdir/usr/share/rpcs3-slim/hypr"
+  install -Dm644 omarchy/70-rpcs3-slim-controllers.rules -t "$pkgdir/usr/lib/udev/rules.d"
+  install -Dm644 README-LITE.md README-OMARCHY.md -t "$pkgdir/usr/share/doc/$pkgname"
+}

@@ -1,0 +1,68 @@
+#!/bin/bash
+# Omarchy integration for RPCS3 Slim: loads the RPCS3 Slim window rules from your Hyprland config.
+
+set -euo pipefail
+
+RULES=/usr/share/rpcs3-slim/hypr/rpcs3-slim.lua
+HYPR_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua"
+LINE="pcall(dofile, \"$RULES\") -- RPCS3 Slim window rules"
+
+usage() {
+  cat <<USAGE
+Usage: rpcs3-slim-omarchy <command>
+
+  setup    Load RPCS3 Slim window rules from $HYPR_CONFIG
+  remove   Remove them again
+  status   Show whether the rules are loaded
+USAGE
+}
+
+reload_hyprland() {
+  command -v hyprctl >/dev/null || return 0
+  hyprctl reload >/dev/null
+  local errors
+  errors=$(hyprctl configerrors 2>/dev/null || true)
+  if [[ -n $errors && $errors != *"no errors"* ]]; then
+    echo "Hyprland reported config errors:" >&2
+    echo "$errors" >&2
+    return 1
+  fi
+}
+
+case "${1:-}" in
+  setup)
+    if [[ ! -f $HYPR_CONFIG ]]; then
+      echo "No Hyprland config at $HYPR_CONFIG" >&2
+      exit 1
+    fi
+    if grep -qF "$RULES" "$HYPR_CONFIG"; then
+      echo "RPCS3 Slim window rules are already loaded."
+    else
+      cp "$HYPR_CONFIG" "$HYPR_CONFIG.bak.$(date +%s)"
+      printf '\n%s\n' "$LINE" >>"$HYPR_CONFIG"
+      echo "Added RPCS3 Slim window rules to $HYPR_CONFIG"
+    fi
+    reload_hyprland
+    ;;
+  remove)
+    if [[ -f $HYPR_CONFIG ]] && grep -qF "$RULES" "$HYPR_CONFIG"; then
+      cp "$HYPR_CONFIG" "$HYPR_CONFIG.bak.$(date +%s)"
+      grep -vF "$RULES" "$HYPR_CONFIG" >"$HYPR_CONFIG.tmp" && mv "$HYPR_CONFIG.tmp" "$HYPR_CONFIG"
+      echo "Removed RPCS3 Slim window rules from $HYPR_CONFIG"
+      reload_hyprland
+    else
+      echo "RPCS3 Slim window rules are not loaded."
+    fi
+    ;;
+  status)
+    if [[ -f $HYPR_CONFIG ]] && grep -qF "$RULES" "$HYPR_CONFIG"; then
+      echo "loaded"
+    else
+      echo "not loaded"
+    fi
+    ;;
+  *)
+    usage
+    [[ ${1:-} == -h || ${1:-} == --help ]] || exit 1
+    ;;
+esac

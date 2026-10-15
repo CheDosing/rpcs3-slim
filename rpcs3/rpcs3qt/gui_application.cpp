@@ -53,8 +53,12 @@
 #include <QStyleFactory>
 #include <QStyleHints>
 #include <QPalette>
+#include <QFileSystemWatcher>
+#include <QRegularExpression>
+#include <QHash>
 
 #include <clocale>
+#include <cmath>
 
 #include "Emu/RSX/Null/NullGSRender.h"
 
@@ -78,6 +82,218 @@ LOG_CHANNEL(gui_log, "GUI");
 std::unique_ptr<raw_mouse_handler> g_raw_mouse_handler;
 
 s32 gui_application::m_language_id = static_cast<s32>(CELL_SYSUTIL_LANG_ENGLISH_US);
+
+namespace
+{
+	// RPCS3 Slim (Omarchy): the built-in Mocha stylesheet is recolored with the active Omarchy theme. Omarchy renders the
+	// theme's palette to ~/.local/state/omarchy/current/theme/colors.toml whenever "omarchy theme set" runs.
+	QString omarchy_state_dir()
+	{
+#if !defined(_WIN32) && !defined(__APPLE__)
+		if (qEnvironmentVariableIsSet("RPCS3_NO_OMARCHY_THEME"))
+		{
+			return {};
+		}
+
+		return QDir::homePath() + QStringLiteral("/.local/state/omarchy/current");
+#else
+		return {};
+#endif
+	}
+
+	struct omarchy_theme
+	{
+		QHash<QString, QString> mocha_to_theme; // lower-case "#rrggbb" Mocha color -> theme color
+		QString on_accent;                      // text drawn on top of the accent color
+		bool light = false;
+
+		bool valid() const { return !mocha_to_theme.isEmpty(); }
+
+		QString map(const QString& mocha) const
+		{
+			return mocha_to_theme.value(mocha.toLower(), mocha);
+		}
+
+		// Replace every Mocha color in a stylesheet or SVG in one pass, so a replacement is never replaced again
+		QString recolor(QString text) const
+		{
+			// Crust (#11111b) doubles as the text color on accent backgrounds and as the darkest surface
+			static const QRegularExpression on_accent_expr(QStringLiteral("((?:^|[\\s;{])(?:selection-)?color:\\s*)#11111b"), QRegularExpression::CaseInsensitiveOption);
+			text.replace(on_accent_expr, QStringLiteral("\\1") + on_accent);
+
+			static const QRegularExpression hex_expr(QStringLiteral("#[0-9a-fA-F]{6}\\b"));
+			QString result;
+			result.reserve(text.size());
+			qsizetype last = 0;
+
+			for (QRegularExpressionMatchIterator it = hex_expr.globalMatch(text); it.hasNext();)
+			{
+				const QRegularExpressionMatch match = it.next();
+				result += QStringView(text).mid(last, match.capturedStart() - last);
+				result += map(match.captured());
+				last = match.capturedEnd();
+			}
+
+			result += QStringView(text).mid(last);
+			return result;
+		}
+	};
+
+	QColor mix_colors(const QColor& a, const QColor& b, double t)
+	{
+		return QColor::fromRgbF(
+			static_cast<float>(a.redF()   + (b.redF()   - a.redF())   * t),
+			static_cast<float>(a.greenF() + (b.greenF() - a.greenF()) * t),
+			static_cast<float>(a.blueF()  + (b.blueF()  - a.blueF())  * t));
+	}
+
+	double contrast_ratio(const QColor& a, const QColor& b)
+	{
+		const auto luminance = [](const QColor& c)
+		{
+			const auto channel = [](double v) { return v <= 0.03928 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4); };
+			return 0.2126 * channel(c.redF()) + 0.7152 * channel(c.greenF()) + 0.0722 * channel(c.blueF());
+		};
+
+		const double la = luminance(a);
+		const double lb = luminance(b);
+		return (std::max(la, lb) + 0.05) / (std::min(la, lb) + 0.05);
+	}
+
+	omarchy_theme load_omarchy_theme()
+	{
+		omarchy_theme theme;
+
+		const QString state_dir = omarchy_state_dir();
+		if (state_dir.isEmpty())
+		{
+			return theme;
+		}
+
+		QFile file(state_dir + QStringLiteral("/theme/colors.toml"));
+		if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+		{
+			return theme;
+		}
+
+		// colors.toml is flat: key = "value"
+		QHash<QString, QString> values;
+		static const QRegularExpression line_expr(QStringLiteral("^\\s*([A-Za-z0-9_]+)\\s*=\\s*\"([^\"]*)\""));
+
+		while (!file.atEnd())
+		{
+			const QString line = QString::fromUtf8(file.readLine());
+			if (const QRegularExpressionMatch match = line_expr.match(line); match.hasMatch())
+			{
+				values.insert(match.captured(1), match.captured(2).trimmed());
+			}
+		}
+
+		const auto color = [&values](std::initializer_list<const char*> keys) -> QColor
+		{
+			for (const char* key : keys)
+			{
+				if (const QColor c = QColor::fromString(values.value(QString::fromLatin1(key))); c.isValid())
+					return c;
+			}
+			return {};
+		};
+
+		const QColor bg = color({"background"});
+		const QColor fg = color({"foreground"});
+		QColor accent = color({"accent", "blue"});
+
+		if (!bg.isValid() || !fg.isValid())
+		{
+			gui_log.warning("Omarchy theme colors in '%s' are incomplete. Using the Mocha theme.", file.fileName());
+			return theme;
+		}
+
+		if (!accent.isValid())
+			accent = fg;
+
+		const auto or_mix = [&](std::initializer_list<const char*> keys, const QColor& a, const QColor& b, double t)
+		{
+			const QColor c = color(keys);
+			return c.isValid() ? c : mix_colors(a, b, t);
+		};
+
+		theme.light = values.value(QStringLiteral("mode")).compare(QStringLiteral("light"), Qt::CaseInsensitive) == 0;
+
+		const QColor dark_bg       = or_mix({"dark_background"}, bg, Qt::black, 0.2);
+		const QColor darker_bg     = or_mix({"darker_background"}, bg, Qt::black, 0.4);
+		const QColor lighter_bg    = or_mix({"lighter_background"}, bg, fg, 0.12);
+		const QColor selection     = or_mix({"selection", "selection_background"}, bg, fg, 0.2);
+		const QColor muted         = or_mix({"muted"}, bg, fg, 0.3);
+		const QColor dark_fg       = or_mix({"dark_foreground"}, bg, fg, 0.45);
+		const QColor light_fg      = or_mix({"light_foreground"}, bg, fg, 0.85);
+
+		const auto set = [&theme](const char* mocha, const QColor& c) { theme.mocha_to_theme.insert(QString::fromLatin1(mocha), c.name()); };
+
+		// Catppuccin Mocha roles -> Omarchy color roles
+		set("#1e1e2e", bg);                                // base
+		set("#1a1a29", mix_colors(bg, dark_bg, 0.5));      // alternate rows
+		set("#181825", dark_bg);                           // mantle
+		set("#11111b", darker_bg);                         // crust
+		set("#313244", lighter_bg);                        // surface0
+		set("#45475a", selection);                         // surface1
+		set("#585b70", muted);                             // surface2
+		set("#6c7086", dark_fg);                           // overlay0
+		set("#7f849c", mix_colors(dark_fg, fg, 0.25));     // overlay1
+		set("#a6adc8", mix_colors(dark_fg, light_fg, 0.6)); // subtext0
+		set("#bac2de", light_fg);                          // subtext1
+		set("#cdd6f4", fg);                                // text
+		set("#cba6f7", accent);                            // mauve (accent)
+		set("#b4befe", mix_colors(accent, fg, 0.3));       // lavender (accent hover)
+		set("#f38ba8", or_mix({"red"}, accent, fg, 0.0));
+		set("#fab387", or_mix({"orange", "yellow"}, accent, fg, 0.0));
+		set("#f9e2af", or_mix({"yellow"}, accent, fg, 0.0));
+		set("#a6e3a1", or_mix({"green"}, accent, fg, 0.0));
+		set("#94e2d5", or_mix({"cyan"}, accent, fg, 0.0));
+		set("#89b4fa", or_mix({"blue"}, accent, fg, 0.0));
+		set("#f5c2e7", or_mix({"magenta"}, accent, fg, 0.0));
+
+		// Readable text on the accent color, whatever the theme brightness
+		theme.on_accent = (contrast_ratio(accent, darker_bg) >= contrast_ratio(accent, fg) ? darker_bg : fg).name();
+
+		gui_log.notice("Using Omarchy theme colors from '%s' (%s mode)", file.fileName(), theme.light ? "light" : "dark");
+		return theme;
+	}
+
+	// Stylesheets can only reference image files, so recolored copies of the Mocha SVGs are written to the cache.
+	// Returns the directory that contains "GuiConfigs/", or an empty string on failure.
+	QString write_omarchy_theme_images(const omarchy_theme& theme, const QString& source_dir)
+	{
+		const QString target_root = QString::fromStdString(fs::get_cache_dir()) + QStringLiteral("omarchy_theme");
+		const QString target_dir = target_root + QStringLiteral("/GuiConfigs/mocha");
+
+		if (!QDir().mkpath(target_dir))
+		{
+			return {};
+		}
+
+		QDirIterator it(source_dir + QStringLiteral("/GuiConfigs/mocha"), { QStringLiteral("*.svg") }, QDir::Files);
+		while (it.hasNext())
+		{
+			QFile in(it.next());
+			QFile out(target_dir + QStringLiteral("/") + it.fileName());
+
+			if (!in.open(QIODevice::ReadOnly) || !out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+			{
+				return {};
+			}
+
+			// The check mark and radio dot sit on the accent color
+			QString svg = QString::fromUtf8(in.readAll());
+			if (it.fileName() == QStringLiteral("check.svg") || it.fileName() == QStringLiteral("radio-dot.svg"))
+				svg.replace(QStringLiteral("#11111b"), theme.on_accent, Qt::CaseInsensitive);
+
+			out.write(theme.recolor(svg).toUtf8());
+		}
+
+		return target_root;
+	}
+}
 
 [[noreturn]] void report_fatal_error(std::string_view text, bool is_html = false, bool include_help_text = true);
 
@@ -335,6 +551,8 @@ void gui_application::Init()
 		connect(this, &gui_application::OnEnableDiscInsert, m_main_window, &main_window::OnEnableDiscInsert);
 
 		connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this](){ OnChangeStyleSheetRequest(); });
+
+		WatchOmarchyTheme();
 
 		m_main_window->Init();
 	}
@@ -1276,44 +1494,76 @@ void gui_application::OnChangeStyleSheetRequest()
 	// RPCS3 Lite: built-in Mocha theme (dark palette + stylesheet, dark window title bars)
 	const auto apply_default_stylesheet = [this]()
 	{
+		const omarchy_theme theme = load_omarchy_theme();
+		const auto c = [&theme](const char* mocha) { return QColor::fromString(theme.map(QString::fromLatin1(mocha))); };
+
 		QPalette pal;
-		pal.setColor(QPalette::Window,          QColor(0x1e, 0x1e, 0x2e));
-		pal.setColor(QPalette::WindowText,      QColor(0xcd, 0xd6, 0xf4));
-		pal.setColor(QPalette::Base,            QColor(0x18, 0x18, 0x25));
-		pal.setColor(QPalette::AlternateBase,   QColor(0x1a, 0x1a, 0x29));
-		pal.setColor(QPalette::ToolTipBase,     QColor(0x18, 0x18, 0x25));
-		pal.setColor(QPalette::ToolTipText,     QColor(0xcd, 0xd6, 0xf4));
-		pal.setColor(QPalette::PlaceholderText, QColor(0x6c, 0x70, 0x86));
-		pal.setColor(QPalette::Text,            QColor(0xcd, 0xd6, 0xf4));
-		pal.setColor(QPalette::Button,          QColor(0x31, 0x32, 0x44));
-		pal.setColor(QPalette::ButtonText,      QColor(0xcd, 0xd6, 0xf4));
-		pal.setColor(QPalette::BrightText,      QColor(0xf3, 0x8b, 0xa8));
-		pal.setColor(QPalette::Light,           QColor(0x45, 0x47, 0x5a));
-		pal.setColor(QPalette::Midlight,        QColor(0x31, 0x32, 0x44));
-		pal.setColor(QPalette::Mid,             QColor(0x31, 0x32, 0x44));
-		pal.setColor(QPalette::Dark,            QColor(0x18, 0x18, 0x25));
-		pal.setColor(QPalette::Shadow,          QColor(0x11, 0x11, 0x1b));
-		pal.setColor(QPalette::Highlight,       QColor(0xcb, 0xa6, 0xf7));
-		pal.setColor(QPalette::HighlightedText, QColor(0x11, 0x11, 0x1b));
-		pal.setColor(QPalette::Link,            QColor(0x89, 0xb4, 0xfa));
-		pal.setColor(QPalette::LinkVisited,     QColor(0xb4, 0xbe, 0xfe));
-		pal.setColor(QPalette::Disabled, QPalette::WindowText, QColor(0x6c, 0x70, 0x86));
-		pal.setColor(QPalette::Disabled, QPalette::Text,       QColor(0x6c, 0x70, 0x86));
-		pal.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(0x6c, 0x70, 0x86));
+		pal.setColor(QPalette::Window,          c("#1e1e2e"));
+		pal.setColor(QPalette::WindowText,      c("#cdd6f4"));
+		pal.setColor(QPalette::Base,            c("#181825"));
+		pal.setColor(QPalette::AlternateBase,   c("#1a1a29"));
+		pal.setColor(QPalette::ToolTipBase,     c("#181825"));
+		pal.setColor(QPalette::ToolTipText,     c("#cdd6f4"));
+		pal.setColor(QPalette::PlaceholderText, c("#6c7086"));
+		pal.setColor(QPalette::Text,            c("#cdd6f4"));
+		pal.setColor(QPalette::Button,          c("#313244"));
+		pal.setColor(QPalette::ButtonText,      c("#cdd6f4"));
+		pal.setColor(QPalette::BrightText,      c("#f38ba8"));
+		pal.setColor(QPalette::Light,           c("#45475a"));
+		pal.setColor(QPalette::Midlight,        c("#313244"));
+		pal.setColor(QPalette::Mid,             c("#313244"));
+		pal.setColor(QPalette::Dark,            c("#181825"));
+		pal.setColor(QPalette::Shadow,          c("#11111b"));
+		pal.setColor(QPalette::Highlight,       c("#cba6f7"));
+		pal.setColor(QPalette::HighlightedText, theme.valid() ? QColor::fromString(theme.on_accent) : c("#11111b"));
+		pal.setColor(QPalette::Link,            c("#89b4fa"));
+		pal.setColor(QPalette::LinkVisited,     c("#b4befe"));
+		pal.setColor(QPalette::Disabled, QPalette::WindowText, c("#6c7086"));
+		pal.setColor(QPalette::Disabled, QPalette::Text,       c("#6c7086"));
+		pal.setColor(QPalette::Disabled, QPalette::ButtonText, c("#6c7086"));
 		setPalette(pal);
 
-		// Resolve GuiConfigs/ image paths next to the executable
+		// Resolve GuiConfigs/ image paths: next to the executable for portable builds, <prefix>/share/rpcs3 when installed
+		QStringList image_dirs;
+#if !defined(_WIN32) && !defined(__APPLE__)
+#ifdef DATADIR
+		image_dirs << QStringLiteral(DATADIR);
+#endif
+		image_dirs << QCoreApplication::applicationDirPath() + QStringLiteral("/../share/rpcs3");
+#endif
+		image_dirs << QCoreApplication::applicationDirPath();
+
+		QString image_dir = image_dirs.constLast();
+		for (const QString& dir : image_dirs)
+		{
+			if (QFileInfo::exists(dir + QStringLiteral("/GuiConfigs/mocha")))
+			{
+				image_dir = QDir(dir).absolutePath();
+				break;
+			}
+		}
+
 		QString stylesheet = gui::stylesheets::default_style_sheet;
-		stylesheet.replace(QStringLiteral("url(\"GuiConfigs/"), QStringLiteral("url(\"") + QCoreApplication::applicationDirPath() + QStringLiteral("/GuiConfigs/"));
+
+		if (theme.valid())
+		{
+			stylesheet = theme.recolor(stylesheet);
+
+			if (const QString themed_dir = write_omarchy_theme_images(theme, image_dir); !themed_dir.isEmpty())
+				image_dir = themed_dir;
+		}
+
+		stylesheet.replace(QStringLiteral("url(\"GuiConfigs/"), QStringLiteral("url(\"") + image_dir + QStringLiteral("/GuiConfigs/"));
 		setStyleSheet(stylesheet);
 
 		// Dark native title bars (Windows 10/11, macOS). Guard against the colorSchemeChanged -> restyle loop.
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
 		static bool s_setting_scheme = false;
-		if (!s_setting_scheme && QGuiApplication::styleHints()->colorScheme() != Qt::ColorScheme::Dark)
+		const Qt::ColorScheme scheme = theme.light ? Qt::ColorScheme::Light : Qt::ColorScheme::Dark;
+		if (!s_setting_scheme && QGuiApplication::styleHints()->colorScheme() != scheme)
 		{
 			s_setting_scheme = true;
-			QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
+			QGuiApplication::styleHints()->setColorScheme(scheme);
 			s_setting_scheme = false;
 		}
 #endif
@@ -1428,6 +1678,46 @@ void gui_application::OnChangeStyleSheetRequest()
 	{
 		m_main_window->RepaintGui();
 	}
+}
+
+void gui_application::WatchOmarchyTheme()
+{
+	// "omarchy theme set" swaps ~/.local/state/omarchy/current/theme and then rewrites theme.name next to it
+	const QString state_dir = omarchy_state_dir();
+	if (state_dir.isEmpty() || !QFileInfo::exists(state_dir + QStringLiteral("/theme/colors.toml")))
+	{
+		return;
+	}
+
+	QFileSystemWatcher* watcher = new QFileSystemWatcher(this);
+	QTimer* debounce = new QTimer(this);
+	debounce->setSingleShot(true);
+	debounce->setInterval(300);
+
+	const QString theme_name_path = state_dir + QStringLiteral("/theme.name");
+	const auto watch = [watcher, state_dir, theme_name_path]()
+	{
+		for (const QString& path : { state_dir, theme_name_path })
+		{
+			if (QFileInfo::exists(path) && !watcher->files().contains(path) && !watcher->directories().contains(path))
+				watcher->addPath(path);
+		}
+	};
+	watch();
+
+	connect(watcher, &QFileSystemWatcher::directoryChanged, debounce, qOverload<>(&QTimer::start));
+	connect(watcher, &QFileSystemWatcher::fileChanged, debounce, qOverload<>(&QTimer::start));
+	connect(debounce, &QTimer::timeout, this, [this, watch]()
+	{
+		watch(); // theme.name may have been replaced
+
+		const QString stylesheet_name = m_gui_settings->GetValue(gui::m_currentStylesheet).toString();
+		if (stylesheet_name.isEmpty() || stylesheet_name == gui::DefaultStylesheet)
+		{
+			gui_log.notice("Omarchy theme changed. Reloading stylesheet.");
+			OnChangeStyleSheetRequest();
+		}
+	});
 }
 
 void gui_application::OnShortcutChange()
