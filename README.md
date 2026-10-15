@@ -1,5 +1,24 @@
-RPCS3
-=====
+RPCS3 Slim
+==========
+
+> **This is a fork of the original [RPCS3](https://github.com/RPCS3/rpcs3) repository.**
+> It is not affiliated with or supported by the RPCS3 team. Please don't report issues from this fork to the upstream project, its forums or its Discord server.
+
+RPCS3 Slim is a lightweight, offline-only build of RPCS3 for testing PS3 homebrew and disc images (`.iso` / `.dec.iso`) on low-end PCs before running them on real hardware.
+
+## What's new in this fork
+
+- **Slim, CPU-optimized UI.** A pared-down interface with online menus, the RPCN button and the network settings tab removed, plus a minimal macOS-style **Mocha** theme. Lighter defaults such as hover GIFs off and update checks off keep the interface from competing with the emulator for CPU time.
+- **Slimmed-down internals.** RPCN, Clans, PSN-over-RPCN, internet and UPnP are forced off at every boot; the auto-updater and database downloads are disabled; FSR/RCAS upscaling is removed and resolution scale is capped at 100%; and Shader Mode defaults to Async for weaker GPUs. A one-click **Precompile** button builds PPU + SPU LLVM caches for the whole game list ahead of time.
+- **New Game Update Downloader.** `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) lists official patches from Sony's PS3 update server, downloads the PKGs, verifies each one's SHA-1 and installs them oldest-first. Downloads are kept in `cache/game_updates/<TitleID>/`.
+
+See [README-LITE.md](README-LITE.md) for the full list of changes, a quick-start guide and low-end tuning tips.
+
+---
+
+## Original RPCS3 README
+
+The section below is the upstream RPCS3 README, kept for reference. Links point to the original project.
 
 [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/RPCS3/rpcs3/rpcs3.yml?branch=master&logo=github&label=Actions)](https://github.com/RPCS3/rpcs3/actions/workflows/rpcs3.yml)
 [![RPCS3 Discord Server](https://img.shields.io/discord/272035812277878785?color=5865F2&label=RPCS3%20Discord&logo=discord&logoColor=white)](https://discord.gg/rpcs3)
