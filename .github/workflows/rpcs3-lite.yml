@@ -98,6 +98,15 @@ jobs:
           path: ${{ env.DEPS_CACHE_DIR }}
           key: ${{ steps.restore-dependencies-cache.outputs.cache-primary-key }}
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build rusty-psn CLI (game update downloader)
+        run: |
+          cargo build --release --locked --no-default-features --features cli --manifest-path 3rdparty/rusty-psn/Cargo.toml
+          cp 3rdparty/rusty-psn/target/release/rusty-psn.exe bin/rusty-psn-cli.exe
+          cp 3rdparty/rusty-psn/LICENSE bin/rusty-psn-LICENSE.txt
+
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@main
 

@@ -1,0 +1,1 @@
+Vendored from https://github.com/RainbowCookie32/rusty-psn at commit e841f26c1b052dc35f85984b02253ce8c4e5f711 (MIT License, see LICENSE). Built as the CLI variant (--no-default-features --features cli) and shipped as rusty-psn-cli.exe.

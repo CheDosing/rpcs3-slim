@@ -12,7 +12,6 @@
 #include "log_frame.h"
 #include "settings_dialog.h"
 #include "rpcn_settings_dialog.h"
-#include "game_update_dialog.h"
 #include "clans_settings_dialog.h"
 #include "auto_pause_settings_dialog.h"
 #include "cg_disasm_window.h"
@@ -65,6 +64,11 @@
 #include <QFontDatabase>
 #include <QBuffer>
 #include <QTemporaryFile>
+#include <QProcess>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QRegularExpression>
+#include <QDateTime>
 #include <QDesktopServices>
 
 #include "rpcs3_version.h"
@@ -100,6 +104,7 @@
 
 #ifdef _WIN32
 #include "raw_mouse_settings_dialog.h"
+#include <windows.h>
 #endif
 
 // RPCS3 Lite: the upstream auto-updater would replace this build with stock RPCS3, so it is disabled.
@@ -4137,25 +4142,126 @@ void main_window::ApplyLiteUi()
 
 void main_window::ShowGameUpdateDialog(const std::string& serial)
 {
-	std::vector<game_update_dialog::title_entry> titles;
-	std::set<std::string> seen;
+	// RPCS3 Lite: game updates are fetched with the bundled rusty-psn CLI (https://github.com/RainbowCookie32/rusty-psn, MIT).
+	// rusty-psn runs in its own console window where the update list is shown and chosen; afterwards every PKG it
+	// downloaded is installed through the regular package installer.
+	const QString exe_name =
+#ifdef _WIN32
+		QStringLiteral("rusty-psn-cli.exe");
+#else
+		QStringLiteral("rusty-psn-cli");
+#endif
+	const QString exe_path = QCoreApplication::applicationDirPath() + QStringLiteral("/") + exe_name;
 
-	if (m_game_list_frame)
+	if (!QFileInfo::exists(exe_path))
 	{
-		for (const game_info& game : m_game_list_frame->GetGameInfo())
-		{
-			// Only PS3 titles have patches on the PS3 update server (4 letters + 5 digits)
-			if (!game || game->serial.size() != 9 || !seen.insert(game->serial).second)
-			{
-				continue;
-			}
+		QMessageBox::warning(this, tr("Game Update Downloader"), tr("%0 was not found next to rpcs3. Re-extract the RPCS3 Lite package.").arg(exe_name));
+		return;
+	}
 
-			titles.push_back({ game->serial, game->name, game->app_ver });
+	QString titles = QString::fromStdString(serial).trimmed().toUpper();
+
+	if (titles.isEmpty())
+	{
+		bool ok = false;
+		titles = QInputDialog::getText(this, tr("Game Update Downloader"), tr("Title ID(s), separated by spaces (e.g. BLUS30443):"), QLineEdit::Normal, {}, &ok).trimmed().toUpper();
+
+		if (!ok || titles.isEmpty())
+		{
+			return;
 		}
 	}
 
-	game_update_dialog* dlg = new game_update_dialog(this, titles, serial, this);
-	dlg->open();
+	// Title IDs only: letters and digits separated by spaces
+	static const QRegularExpression valid_titles(QStringLiteral("^[A-Z]{4}[0-9]{5}( +[A-Z]{4}[0-9]{5})*$"));
+	titles = titles.simplified();
+	titles.remove(QLatin1Char('-'));
+
+	if (!valid_titles.match(titles).hasMatch())
+	{
+		QMessageBox::warning(this, tr("Game Update Downloader"), tr("\"%0\" is not a valid PS3 Title ID (4 letters + 5 digits, e.g. BLUS30443).").arg(titles));
+		return;
+	}
+
+	QString dest = QString::fromStdString(fs::get_cache_dir() + "game_updates");
+	fs::create_path(dest.toStdString());
+	dest = QDir::toNativeSeparators(QDir(dest).absolutePath());
+
+	const QDateTime started = QDateTime::currentDateTime().addSecs(-2);
+	const QStringList title_list = titles.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+
+	QProcess* proc = new QProcess(this);
+	proc->setWorkingDirectory(dest); // rusty-psn writes its log file to the working directory
+
+#ifdef _WIN32
+	// Visible console so the rusty-psn CLI can list the updates and let the user pick them; "pause" keeps
+	// the result readable before the window closes.
+	proc->setProgram(QStringLiteral("cmd.exe"));
+	proc->setNativeArguments(QStringLiteral("/c \"\"%0\" -t \"%1\" -d \"%2\" & echo. & pause\"")
+		.arg(QDir::toNativeSeparators(exe_path), titles, dest));
+	proc->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* args)
+	{
+		args->flags |= CREATE_NEW_CONSOLE;
+		args->startupInfo->dwFlags &= ~STARTF_USESTDHANDLES;
+	});
+#else
+	// No console here: download everything without prompting
+	proc->setProgram(exe_path);
+	proc->setArguments({ QStringLiteral("-t"), titles, QStringLiteral("-d"), dest, QStringLiteral("-s") });
+	proc->setProcessChannelMode(QProcess::ForwardedChannels);
+#endif
+
+	connect(proc, &QProcess::finished, this, [this, proc, dest, title_list, started](int exit_code, QProcess::ExitStatus status)
+	{
+		proc->deleteLater();
+		gui_log.notice("rusty-psn finished (exit code %d, status %d)", exit_code, static_cast<int>(status));
+
+		// rusty-psn saves to "<dest>/<SERIAL> - <Title>/<file>.pkg". Collect what this run produced.
+		QStringList pkgs;
+		QDirIterator it(dest, { QStringLiteral("*.pkg") }, QDir::Files, QDirIterator::Subdirectories);
+
+		while (it.hasNext())
+		{
+			const QFileInfo info(it.next());
+			const QString folder = info.dir().dirName().toUpper();
+			const bool for_title = std::any_of(title_list.cbegin(), title_list.cend(), [&folder](const QString& t) { return folder.startsWith(t); });
+
+			if (for_title && info.size() > 0 && info.lastModified() >= started)
+			{
+				pkgs << info.absoluteFilePath();
+			}
+		}
+
+		if (pkgs.isEmpty())
+		{
+			QMessageBox::information(this, tr("Game Update Downloader"), tr("No new updates were downloaded."));
+			return;
+		}
+
+		// File names carry the app version (e.g. ...-A0102-V0100-PE.pkg), so name order is install order
+		pkgs.sort(Qt::CaseInsensitive);
+
+		if (!Emu.IsStopped())
+		{
+			QMessageBox::information(this, tr("Game Update Downloader"), tr("%0 update(s) downloaded to\n%1\n\nStop the running game, then install them with File > Install Packages.").arg(pkgs.size()).arg(dest));
+			return;
+		}
+
+		gui_log.notice("Installing %d downloaded update(s)", pkgs.size());
+		InstallPackages(this, pkgs);
+	});
+
+	connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError error)
+	{
+		if (error == QProcess::FailedToStart)
+		{
+			QMessageBox::warning(this, tr("Game Update Downloader"), tr("Could not start rusty-psn: %0").arg(proc->errorString()));
+			proc->deleteLater();
+		}
+	});
+
+	gui_log.notice("Starting rusty-psn for: %s", titles.toStdString());
+	proc->start();
 }
 
 void main_window::CreateFirmwareCache()

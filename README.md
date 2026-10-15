@@ -16,7 +16,7 @@ RPCS3 Slim is a lightweight, offline-only build of RPCS3 for testing PS3 homebre
 
   `█████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░ 50%`
 
-  `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) lists official patches from Sony's PS3 update server, downloads the PKGs, verifies each one's SHA-1 and installs them oldest-first. Downloads are kept in `cache/game_updates/<TitleID>/`.
+  `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) runs the bundled [rusty-psn](https://github.com/RainbowCookie32/rusty-psn) CLI (by RainbowCookie32, MIT) in a console window. Pick the updates there; once it finishes, every downloaded PKG is installed automatically. Downloads are kept in `cache/game_updates/`.
 
 See [README-LITE.md](README-LITE.md) for the full list of changes, a quick-start guide and low-end tuning tips.
 
