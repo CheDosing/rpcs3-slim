@@ -10,7 +10,13 @@ RPCS3 Slim is a lightweight, offline-only build of RPCS3 for testing PS3 homebre
 
 - **Slim, CPU-optimized UI.** A pared-down interface with online menus, the RPCN button and the network settings tab removed, plus a minimal macOS-style **Mocha** theme. Lighter defaults such as hover GIFs off and update checks off keep the interface from competing with the emulator for CPU time.
 - **Slimmed-down internals.** RPCN, Clans, PSN-over-RPCN, internet and UPnP are forced off at every boot; the auto-updater and database downloads are disabled; FSR/RCAS upscaling is removed and resolution scale is capped at 100%; and Shader Mode defaults to Async for weaker GPUs. A one-click **Precompile** button builds PPU + SPU LLVM caches for the whole game list ahead of time.
-- **New Game Update Downloader.** `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) lists official patches from Sony's PS3 update server, downloads the PKGs, verifies each one's SHA-1 and installs them oldest-first. Downloads are kept in `cache/game_updates/<TitleID>/`.
+- **New Game Update Downloader** *(work in progress)*
+
+  ![Status: In Testing](https://img.shields.io/badge/status-in%20testing-orange) ![Progress: 50%](https://img.shields.io/badge/progress-50%25-yellow)
+
+  `█████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░ 50%`
+
+  `Utilities → Game Update Downloader...` (or right-click a game → **Check for Game Updates...**) lists official patches from Sony's PS3 update server, downloads the PKGs, verifies each one's SHA-1 and installs them oldest-first. Downloads are kept in `cache/game_updates/<TitleID>/`.
 
 See [README-LITE.md](README-LITE.md) for the full list of changes, a quick-start guide and low-end tuning tips.
 
