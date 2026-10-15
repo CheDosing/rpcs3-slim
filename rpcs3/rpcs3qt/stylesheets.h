@@ -2,108 +2,589 @@
 
 #include <QString>
 
+// RPCS3 Lite: the built-in "Default" stylesheet is the Mocha theme (Catppuccin Mocha, minimal macOS-like).
+// Generated from bin/GuiConfigs/Mocha.qss - keep both in sync.
+// url("GuiConfigs/...") paths are resolved against the executable directory at runtime.
+
 namespace gui
 {
 	namespace stylesheets
 	{
 		const QString default_style_sheet
 		(
-			// main window toolbar search
-			"QLineEdit#mw_searchbar { padding: 0 1em; background: #fdfdfd; selection-background-color: #148aff; margin: .8em; color:#000000; }"
+			R"MOCHA(/* ---------- Base ---------- */
+QWidget {
+	color: #cdd6f4;
+	background-color: transparent;
+	selection-background-color: #cba6f7;
+	selection-color: #11111b;
+	alternate-background-color: #1a1a29;
+	font-family: "Segoe UI Variable Text", "Segoe UI", "SF Pro Text", "Helvetica Neue", sans-serif;
+	outline: none;
+}
+QMainWindow, QDialog {
+	background-color: #1e1e2e;
+}
+QWidget:disabled {
+	color: #6c7086;
+}
 
-			// main window toolbar slider
-			"QSlider#sizeSlider { color: #505050; background: #F0F0F0; }"
-			"QSlider#sizeSlider::handle:horizontal { border: 0em smooth rgba(227, 227, 227, 255); border-radius: .58em; background: #404040; width: 1.2em; margin: -.5em 0; }"
-			"QSlider#sizeSlider::groove:horizontal { border-radius: .15em; background: #5b5b5b; height: .3em; }"
+/* Main window: kill the separator lines between toolbar, game list and docks */
+QMainWindow::separator {
+	background: #181825;
+	width: 1px;
+	height: 1px;
+	border: none;
+}
+QMainWindow::separator:hover {
+	background: #45475a;
+}
+QSplitter::handle {
+	background: #181825;
+}
+QStatusBar {
+	background: #181825;
+	border: none;
+}
+QStatusBar::item {
+	border: none;
+}
+QFrame[frameShape="4"], QFrame[frameShape="5"] { /* HLine / VLine */
+	color: #313244;
+	background: #313244;
+	border: none;
+}
 
-			// main window toolbar
-			"QToolBar#mw_toolbar { background-color: #F0F0F0; border: none; }"
-			"QToolBar#mw_toolbar::separator { background-color: rgba(207, 207, 207, 235); width: 0.125em; margin-top: 0.250em; margin-bottom: 0.250em; }"
-			"QToolButton:disabled { color: #787878; }"
+/* ---------- Menus ---------- */
+QMenuBar {
+	background-color: #181825;
+	border: none;
+	padding: 2px 6px;
+}
+QMenuBar::item {
+	background: transparent;
+	padding: 4px 10px;
+	border-radius: 6px;
+}
+QMenuBar::item:selected, QMenuBar::item:pressed {
+	background: #313244;
+}
+QMenu {
+	background-color: #181825;
+	border: 1px solid #313244;
+	border-radius: 10px;
+	padding: 6px;
+}
+QMenu::item {
+	padding: 5px 22px 5px 22px;
+	border-radius: 6px;
+	background: transparent;
+}
+QMenu::item:selected {
+	background-color: #cba6f7;
+	color: #11111b;
+}
+QMenu::item:disabled {
+	color: #585b70;
+	background: transparent;
+}
+QMenu::separator {
+	height: 1px;
+	background: #313244;
+	margin: 5px 8px;
+}
+QMenu::indicator {
+	width: 12px;
+	height: 12px;
+	left: 6px;
+}
+QMenu::indicator:checked {
+	image: url("GuiConfigs/mocha/check.svg");
+	background: #cba6f7;
+	border-radius: 3px;
+}
 
-			// main window toolbar icon color
-			"QLabel#toolbar_icon_color { color: #5b5b5b; }"
+/* ---------- Toolbar ---------- */
+QToolBar#mw_toolbar {
+	background-color: #181825;
+	border: none;
+	padding: 4px 8px;
+	spacing: 2px;
+}
+QToolBar#mw_toolbar::separator {
+	background: #313244;
+	width: 1px;
+	margin: 8px 6px;
+}
+QToolButton {
+	background: transparent;
+	border: none;
+	border-radius: 8px;
+	padding: 4px 8px;
+	color: #bac2de;
+}
+QToolButton:hover {
+	background-color: #313244;
+	color: #cdd6f4;
+}
+QToolButton:pressed, QToolButton:checked {
+	background-color: #45475a;
+}
+QToolButton:disabled {
+	color: #585b70;
+}
 
-			// game list icon color
-			"QLabel#gamelist_icon_background_color { color: rgba(240, 240, 240, 255); }"
+/* Toolbar search: macOS pill */
+QLineEdit#mw_searchbar {
+	background: #313244;
+	border: 1px solid transparent;
+	border-radius: 14px;
+	padding: 4px 12px;
+	margin: 0.6em;
+	color: #cdd6f4;
+	selection-background-color: #cba6f7;
+}
+QLineEdit#mw_searchbar:focus {
+	border: 1px solid #cba6f7;
+}
 
-			// game grid
-			"#game_list_grid #flow_widget_content { background: #fff; }"
-			"#game_list_grid_item { background: #fff; }"
-			"#game_list_grid_item[selected=\"true\"] { background: #148aff; }"
-			"#game_list_grid_item:focus { background: #148aff; }"
-			"#game_list_grid_item:hover { background: #94c9ff; }"
-			"#game_list_grid_item:hover:focus { background: #007fff; }"
-			"#game_list_grid_item #game_list_grid_item_title_label { color: rgba(51, 51, 51, 255); font-weight: 600; font-size: 8pt; font-family: Lucida Grande; border: 0em solid white; }"
+/* Toolbar icon size slider */
+QSlider#sizeSlider {
+	background: transparent;
+}
+QSlider#sizeSlider::groove:horizontal {
+	height: 4px;
+	border-radius: 2px;
+	background: #45475a;
+}
+QSlider#sizeSlider::sub-page:horizontal {
+	border-radius: 2px;
+	background: #cba6f7;
+}
+QSlider#sizeSlider::handle:horizontal {
+	width: 14px;
+	height: 14px;
+	margin: -5px 0;
+	border-radius: 7px;
+	background: #cdd6f4;
+}
 
-			// game grid hover and focus: we need to handle properties differently when using descendants
-			"#game_list_grid_item[selected=\"true\"] #game_list_grid_item_title_label { color: #fff; }"
-			"#game_list_grid_item[hover=\"true\"] #game_list_grid_item_title_label { color: #fff; }"
-			"#game_list_grid_item[focus=\"true\"] #game_list_grid_item_title_label { color: #fff; }"
+/* ---------- Inputs ---------- */
+QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QKeySequenceEdit {
+	background-color: #181825;
+	border: 1px solid #313244;
+	border-radius: 6px;
+	padding: 3px 6px;
+}
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+	border: 1px solid #cba6f7;
+}
+QSpinBox::up-button, QDoubleSpinBox::up-button,
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+	background: transparent;
+	border: none;
+	width: 16px;
+}
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+	image: url("GuiConfigs/mocha/arrow-up.svg");
+	width: 9px;
+	height: 9px;
+}
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+	image: url("GuiConfigs/mocha/arrow-down.svg");
+	width: 9px;
+	height: 9px;
+}
 
-			// save manager icon color
-			"QLabel#save_manager_icon_background_color { color: rgba(240, 240, 240, 255); }"
+QPushButton {
+	background-color: #313244;
+	border: 1px solid #45475a;
+	border-radius: 7px;
+	padding: 4px 14px;
+	min-height: 1.3em;
+}
+QPushButton:hover {
+	background-color: #45475a;
+}
+QPushButton:pressed {
+	background-color: #585b70;
+}
+QPushButton:default {
+	background-color: #cba6f7;
+	border-color: #cba6f7;
+	color: #11111b;
+}
+QPushButton:default:hover {
+	background-color: #b4befe;
+	border-color: #b4befe;
+}
+QPushButton:disabled {
+	background-color: #1e1e2e;
+	border-color: #313244;
+	color: #585b70;
+}
+QPushButton:checked {
+	background-color: #cba6f7;
+	color: #11111b;
+}
 
-			// trophy manager icon color
-			"QLabel#trophy_manager_icon_background_color { color: rgba(240, 240, 240, 255); }"
+QComboBox {
+	background-color: #313244;
+	border: 1px solid #45475a;
+	border-radius: 7px;
+	padding: 3px 26px 3px 10px;
+	min-height: 1.3em;
+}
+QComboBox:hover {
+	background-color: #45475a;
+}
+QComboBox:disabled {
+	background-color: #1e1e2e;
+	border-color: #313244;
+}
+QComboBox::drop-down {
+	border: none;
+	width: 22px;
+}
+QComboBox::down-arrow {
+	image: url("GuiConfigs/mocha/arrow-down.svg");
+	width: 10px;
+	height: 10px;
+}
+QComboBox::down-arrow:disabled {
+	image: url("GuiConfigs/mocha/arrow-down-disabled.svg");
+}
+QComboBox QAbstractItemView {
+	background-color: #181825;
+	border: 1px solid #313244;
+	border-radius: 8px;
+	padding: 4px;
+	selection-background-color: #cba6f7;
+	selection-color: #11111b;
+}
 
-			// tables
-			"QTableWidget { alternate-background-color: #f2f2f2; background-color: #fff; border: none; }"
-			"QTableView::item { border-left: 0.063em solid white; border-right: 0.063em solid white; padding-left:0.313em; }"
-			"QTableView::item:selected { background-color: #148aff; color: #fff; }"
+QCheckBox, QRadioButton {
+	spacing: 7px;
+	background: transparent;
+}
+QCheckBox::indicator, QRadioButton::indicator, QGroupBox::indicator {
+	width: 14px;
+	height: 14px;
+	background-color: #181825;
+	border: 1px solid #585b70;
+}
+QCheckBox::indicator, QGroupBox::indicator {
+	border-radius: 4px;
+}
+QRadioButton::indicator {
+	border-radius: 8px;
+}
+QCheckBox::indicator:hover, QRadioButton::indicator:hover {
+	border-color: #cba6f7;
+}
+QCheckBox::indicator:checked, QGroupBox::indicator:checked {
+	background-color: #cba6f7;
+	border-color: #cba6f7;
+	image: url("GuiConfigs/mocha/check.svg");
+}
+QCheckBox::indicator:indeterminate {
+	background-color: #7f849c;
+	border-color: #7f849c;
+}
+QRadioButton::indicator:checked {
+	background-color: #cba6f7;
+	border-color: #cba6f7;
+	image: url("GuiConfigs/mocha/radio-dot.svg");
+}
+QCheckBox::indicator:disabled, QRadioButton::indicator:disabled {
+	background-color: #1e1e2e;
+	border-color: #313244;
+}
+QCheckBox::indicator:checked:disabled {
+	background-color: #45475a;
+)MOCHA"
+			R"MOCHA(	border-color: #45475a;
+	image: url("GuiConfigs/mocha/check-disabled.svg");
+}
 
-			// table headers
-			"QHeaderView::section { padding-left: .5em; padding-right: .5em; padding-top: .4em; padding-bottom: -.1em; border: 0.063em solid #ffffff; }"
-			"QHeaderView::section:hover { background: #e3e3e3; padding-left: .5em; padding-right: .5em; padding-top: .4em; padding-bottom: -.1em; border: 0.063em solid #ffffff; }"
+QSlider::groove:horizontal {
+	height: 4px;
+	border-radius: 2px;
+	background: #45475a;
+}
+QSlider::sub-page:horizontal {
+	border-radius: 2px;
+	background: #cba6f7;
+}
+QSlider::handle:horizontal {
+	width: 14px;
+	height: 14px;
+	margin: -5px 0;
+	border-radius: 7px;
+	background: #cdd6f4;
+}
+QSlider::handle:horizontal:disabled {
+	background: #585b70;
+}
+QSlider::sub-page:horizontal:disabled {
+	background: #45475a;
+}
 
-			// dock widget
-			"QDockWidget{ background: transparent; color: black; }"
-			"[floating=\"true\"]{ background: white; }"
-			"QDockWidget::title{ background: #e3e3e3; border: none; padding-top: 0.2em; padding-left: 0.2em; }"
-			"QDockWidget::close-button, QDockWidget::float-button{ background-color: #e3e3e3; }"
+QProgressBar {
+	background-color: #313244;
+	border: none;
+	border-radius: 5px;
+	text-align: center;
+	color: #cdd6f4;
+	min-height: 10px;
+}
+QProgressBar::chunk {
+	background-color: #cba6f7;
+	border-radius: 5px;
+}
 
-			// log frame tty
-			"QPlainTextEdit#tty_frame { background-color: #ffffff; }"
-			"QLabel#tty_text { color: #000000; }"
+/* ---------- Group boxes / tabs (settings) ---------- */
+QGroupBox {
+	background-color: #181825;
+	border: 1px solid #313244;
+	border-radius: 10px;
+	margin-top: 1.4em;
+	padding: 0.5em 0.4em 0.4em 0.4em;
+}
+QGroupBox::title {
+	subcontrol-origin: margin;
+	subcontrol-position: top left;
+	left: 10px;
+	padding: 0 4px;
+	color: #a6adc8;
+	font-weight: 600;
+}
 
-			// log frame log
-			"QPlainTextEdit#log_frame { background-color: #ffffff; }"
-			"QLabel#log_level_always { color: #107896; }"
-			"QLabel#log_level_fatal { color: #ff00ff; }"
-			"QLabel#log_level_error { color: #C02F1D; }"
-			"QLabel#log_level_todo { color: #ff6000; }"
-			"QLabel#log_level_success { color: #008000; }"
-			"QLabel#log_level_warning { color: #BA8745; }"
-			"QLabel#log_level_notice { color: #000000; }"
-			"QLabel#log_level_trace { color: #808080; }"
-			"QLabel#log_stack { color: #000000; }"
+QTabWidget::pane {
+	border: none;
+	background: transparent;
+	top: -1px;
+}
+QTabBar {
+	qproperty-drawBase: 0;
+	background: transparent;
+}
+QTabBar::tab {
+	background: transparent;
+	color: #a6adc8;
+	border: none;
+	border-radius: 7px;
+	padding: 5px 12px;
+	margin: 2px 2px 6px 2px;
+}
+QTabBar::tab:hover {
+	background: #313244;
+	color: #cdd6f4;
+}
+QTabBar::tab:selected {
+	background: #313244;
+	color: #cdd6f4;
+	font-weight: 600;
+}
+QWidget#coreTab, QWidget#gpuTab, QWidget#audioTab, QWidget#inputTab,
+QWidget#systemTab, QWidget#networkTab, QWidget#advancedTab, QWidget#emulatorTab,
+QWidget#guiTab, QWidget#debugTab, QWidget#cg_disasm, QWidget#trophy_manager {
+	background-color: #1e1e2e;
+}
+QScrollArea, QScrollArea > QWidget > QWidget {
+	background: transparent;
+	border: none;
+}
 
-			// about dialog
-			"QWidget#header_section { background-color: #ffffff; }"
+/* ---------- Lists / tables (game list) ---------- */
+QTableView, QTableWidget, QListView, QListWidget, QTreeView, QTreeWidget {
+	background-color: #1e1e2e;
+	alternate-background-color: #1a1a29;
+	border: none;
+	gridline-color: transparent;
+	selection-background-color: #38cba6f7;
+	selection-color: #cdd6f4;
+}
+QTableView::item, QListView::item, QTreeView::item {
+	border: none;
+	padding-left: 6px;
+}
+QTableView::item:selected, QListView::item:selected, QTreeView::item:selected {
+	background-color: #38cba6f7;
+	color: #cdd6f4;
+}
+QTableView::item:hover, QListView::item:hover, QTreeView::item:hover {
+	background-color: #0dcdd6f4;
+}
+QTableCornerButton::section {
+	background: #1e1e2e;
+	border: none;
+}
+QHeaderView {
+	background: #1e1e2e;
+	border: none;
+}
+QHeaderView::section {
+	background-color: #1e1e2e;
+	color: #7f849c;
+	border: none;
+	border-bottom: 1px solid #313244;
+	padding: 6px 8px;
+	font-weight: 600;
+}
+QHeaderView::section:hover {
+	color: #cdd6f4;
+}
+QTreeView::branch:has-children:!has-siblings:closed,
+QTreeView::branch:closed:has-children:has-siblings {
+	border-image: none;
+	image: url("GuiConfigs/mocha/branch-closed.svg");
+}
+QTreeView::branch:open:has-children:!has-siblings,
+QTreeView::branch:open:has-children:has-siblings {
+	border-image: none;
+	image: url("GuiConfigs/mocha/branch-open.svg");
+}
 
-			// kernel explorer
-			"QDialog#kernel_explorer { background-color: rgba(240, 240, 240, 255); }"
+/* Game grid */
+#game_list_grid #flow_widget_content {
+	background: #1e1e2e;
+}
+#game_list_grid_item {
+	background: transparent;
+	border-radius: 10px;
+}
+#game_list_grid_item:hover {
+	background: #313244;
+}
+#game_list_grid_item[selected="true"], #game_list_grid_item:focus {
+	background: #38cba6f7;
+}
+#game_list_grid_item #game_list_grid_item_title_label {
+	color: #bac2de;
+	background: transparent;
+	font-weight: 600;
+	font-size: 8pt;
+	border: none;
+}
+#game_list_grid_item[selected="true"] #game_list_grid_item_title_label,
+#game_list_grid_item[hover="true"] #game_list_grid_item_title_label,
+#game_list_grid_item[focus="true"] #game_list_grid_item_title_label {
+	color: #cdd6f4;
+	background: transparent;
+}
 
-			// memory viewer
-			"QDialog#memory_viewer { background-color: rgba(240, 240, 240, 255); }"
-			"QLabel#memory_viewer_address_panel { color: rgba(75, 135, 150, 255); background-color: rgba(240, 240, 240, 255); }"
-			"QLabel#memory_viewer_hex_panel { color: #000000; background-color: rgba(240, 240, 240, 255); }"
-			"QLabel#memory_viewer_ascii_panel { color: #000000; background-color: rgba(240, 240, 240, 255); }"
+/* ---------- Scrollbars: thin, overlay-like ---------- */
+QScrollBar:vertical {
+	background: transparent;
+	width: 10px;
+	margin: 2px;
+}
+QScrollBar:horizontal {
+	background: transparent;
+	height: 10px;
+	margin: 2px;
+}
+QScrollBar::handle:vertical {
+	background: #45475a;
+	border-radius: 3px;
+	min-height: 30px;
+	margin: 0 1px;
+}
+QScrollBar::handle:horizontal {
+	background: #45475a;
+	border-radius: 3px;
+	min-width: 30px;
+	margin: 1px 0;
+}
+QScrollBar::handle:hover {
+	background: #6c7086;
+}
+QScrollBar::add-line, QScrollBar::sub-line {
+	width: 0;
+	height: 0;
+	border: none;
+	background: none;
+}
+QScrollBar::add-page, QScrollBar::sub-page {
+	background: none;
+}
 
-			// debugger frame
-			"QLabel#debugger_frame_breakpoint { color: #000000; background-color: #ffff00; }"
-			"QLabel#debugger_frame_pc { color: #000000; background-color: #00ff00; }"
+/* ---------- Docks (log / TTY) ---------- */
+QDockWidget {
+	color: #a6adc8;
+}
+QDockWidget::title {
+	background: #181825;
+	padding: 5px 8px;
+	border: none;
+}
+QDockWidget::close-button, QDockWidget::float-button {
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+}
+QDockWidget::close-button:hover, QDockWidget::float-button:hover {
+	background: #313244;
+}
+[floating="true"] {
+	background: #1e1e2e;
+}
 
-			// rsx debugger
-			"QLabel#rsx_debugger_display_buffer { background-color: rgba(240, 240, 240, 255); }"
+/* ---------- Tooltips ---------- */
+QToolTip {
+	background-color: #181825;
+	color: #cdd6f4;
+	border: 1px solid #313244;
+	border-radius: 6px;
+	padding: 5px 8px;
+}
 
-			// pad settings
-			"QLabel#l_controller { color: #434343; }"
+/* ---------- RPCS3 color hooks ---------- */
+QLabel#toolbar_icon_color { color: #bac2de; }
+QLabel#toolbar_icon_color_disabled { color: #585b70; }
+QLabel#toolbar_icon_color_active { color: #cba6f7; }
+QLabel#toolbar_icon_color_selected { color: #cdd6f4; }
+QLabel#gamelist_icon_background_color { color: #1e1e2e; }
+QLabel#save_manager_icon_background_color { color: #1e1e2e; }
+QLabel#trophy_manager_icon_background_color { color: #1e1e2e; }
+QLabel#savestate_manager_icon_background_color { color: #1e1e2e; }
+QLabel#richtext_link_color { color: #89b4fa; }
+QLabel#l_controller { color: #bac2de; }
 
-			// Top menu bar (Workaround for transparent menus in Qt 6.7.3)
-			"QMenu { color: #000; background-color: #F0F0F0; alternate-background-color: #f2f2f2; }"
-			"QMenu::item:selected { background: #90C8F6; }"
-			"QMenu::item:disabled { color: #787878; }"
+QPlainTextEdit#log_frame, QPlainTextEdit#tty_frame {
+	background-color: #11111b;
+	border: none;
+	border-radius: 0;
+	font-family: "Cascadia Mono", "Consolas", "SF Mono", monospace;
+}
+QLabel#log_level_always { color: #94e2d5; }
+QLabel#log_level_fatal { color: #f5c2e7; }
+QLabel#log_level_error { color: #f38ba8; }
+)MOCHA"
+			R"MOCHA(QLabel#log_level_todo { color: #fab387; }
+QLabel#log_level_success { color: #a6e3a1; }
+QLabel#log_level_warning { color: #f9e2af; }
+QLabel#log_level_notice { color: #cdd6f4; }
+QLabel#log_level_trace { color: #6c7086; }
+QLabel#log_stack { color: #bac2de; }
+QLabel#tty_text { color: #cdd6f4; }
+
+QWidget#header_section { background-color: #181825; }
+QDialog#kernel_explorer, QDialog#memory_viewer { background-color: #1e1e2e; }
+QLabel#memory_viewer_address_panel { color: #89b4fa; background-color: #1e1e2e; }
+QLabel#memory_viewer_hex_panel { color: #cdd6f4; background-color: #1e1e2e; }
+QLabel#memory_viewer_ascii_panel { color: #a6adc8; background-color: #1e1e2e; }
+QLabel#debugger_frame_breakpoint { color: #11111b; background-color: #f9e2af; }
+QLabel#debugger_frame_pc { color: #11111b; background-color: #a6e3a1; }
+QLabel#rsx_debugger_display_buffer { background-color: #1e1e2e; }
+
+QWidget#trophy_notification_frame {
+	background-color: #181825;
+	color: #cdd6f4;
+	border-radius: 10px;
+}
+)MOCHA"
 		);
 	}
 }

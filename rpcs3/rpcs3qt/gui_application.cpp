@@ -52,6 +52,7 @@
 #include <QTextDocument>
 #include <QStyleFactory>
 #include <QStyleHints>
+#include <QPalette>
 
 #include <clocale>
 
@@ -1227,6 +1228,17 @@ void gui_application::OnChangeStyleSheetRequest()
 	// Determine default style
 	if (m_default_style.isEmpty())
 	{
+		// RPCS3 Lite: Fusion renders stylesheets consistently on every platform. The native Windows 11 style
+		// draws its own frames/focus lines underneath custom stylesheets, which shows up as flickering dark lines.
+		if (QStyleFactory::keys().contains("Fusion", Qt::CaseInsensitive))
+		{
+			m_default_style = "Fusion";
+			gui_log.notice("RPCS3 Lite: using '%s' as default style", m_default_style);
+		}
+	}
+
+	if (m_default_style.isEmpty())
+	{
 #ifdef _WIN32
 		// On windows, the custom stylesheets don't seem to work properly unless we use the windowsvista style as default
 		if (QStyleFactory::keys().contains("windowsvista"))
@@ -1258,7 +1270,54 @@ void gui_application::OnChangeStyleSheetRequest()
 	if (QStyle* style = QStyleFactory::create(m_default_style))
 	{
 		setStyle(style);
+		setPalette(style->standardPalette());
 	}
+
+	// RPCS3 Lite: built-in Mocha theme (dark palette + stylesheet, dark window title bars)
+	const auto apply_default_stylesheet = [this]()
+	{
+		QPalette pal;
+		pal.setColor(QPalette::Window,          QColor(0x1e, 0x1e, 0x2e));
+		pal.setColor(QPalette::WindowText,      QColor(0xcd, 0xd6, 0xf4));
+		pal.setColor(QPalette::Base,            QColor(0x18, 0x18, 0x25));
+		pal.setColor(QPalette::AlternateBase,   QColor(0x1a, 0x1a, 0x29));
+		pal.setColor(QPalette::ToolTipBase,     QColor(0x18, 0x18, 0x25));
+		pal.setColor(QPalette::ToolTipText,     QColor(0xcd, 0xd6, 0xf4));
+		pal.setColor(QPalette::PlaceholderText, QColor(0x6c, 0x70, 0x86));
+		pal.setColor(QPalette::Text,            QColor(0xcd, 0xd6, 0xf4));
+		pal.setColor(QPalette::Button,          QColor(0x31, 0x32, 0x44));
+		pal.setColor(QPalette::ButtonText,      QColor(0xcd, 0xd6, 0xf4));
+		pal.setColor(QPalette::BrightText,      QColor(0xf3, 0x8b, 0xa8));
+		pal.setColor(QPalette::Light,           QColor(0x45, 0x47, 0x5a));
+		pal.setColor(QPalette::Midlight,        QColor(0x31, 0x32, 0x44));
+		pal.setColor(QPalette::Mid,             QColor(0x31, 0x32, 0x44));
+		pal.setColor(QPalette::Dark,            QColor(0x18, 0x18, 0x25));
+		pal.setColor(QPalette::Shadow,          QColor(0x11, 0x11, 0x1b));
+		pal.setColor(QPalette::Highlight,       QColor(0xcb, 0xa6, 0xf7));
+		pal.setColor(QPalette::HighlightedText, QColor(0x11, 0x11, 0x1b));
+		pal.setColor(QPalette::Link,            QColor(0x89, 0xb4, 0xfa));
+		pal.setColor(QPalette::LinkVisited,     QColor(0xb4, 0xbe, 0xfe));
+		pal.setColor(QPalette::Disabled, QPalette::WindowText, QColor(0x6c, 0x70, 0x86));
+		pal.setColor(QPalette::Disabled, QPalette::Text,       QColor(0x6c, 0x70, 0x86));
+		pal.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(0x6c, 0x70, 0x86));
+		setPalette(pal);
+
+		// Resolve GuiConfigs/ image paths next to the executable
+		QString stylesheet = gui::stylesheets::default_style_sheet;
+		stylesheet.replace(QStringLiteral("url(\"GuiConfigs/"), QStringLiteral("url(\"") + QCoreApplication::applicationDirPath() + QStringLiteral("/GuiConfigs/"));
+		setStyleSheet(stylesheet);
+
+		// Dark native title bars (Windows 10/11, macOS). Guard against the colorSchemeChanged -> restyle loop.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+		static bool s_setting_scheme = false;
+		if (!s_setting_scheme && QGuiApplication::styleHints()->colorScheme() != Qt::ColorScheme::Dark)
+		{
+			s_setting_scheme = true;
+			QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
+			s_setting_scheme = false;
+		}
+#endif
+	};
 
 	const auto match_native_style = [&stylesheet_name]() -> QString
 	{
@@ -1280,7 +1339,7 @@ void gui_application::OnChangeStyleSheetRequest()
 	if (stylesheet_name.isEmpty() || stylesheet_name == gui::DefaultStylesheet)
 	{
 		gui_log.notice("Using default stylesheet");
-		setStyleSheet(gui::stylesheets::default_style_sheet);
+		apply_default_stylesheet();
 		gui::custom_stylesheet_active = true;
 	}
 	else if (stylesheet_name == gui::NoStylesheet)
@@ -1357,7 +1416,7 @@ void gui_application::OnChangeStyleSheetRequest()
 		else
 		{
 			gui_log.error("Could not find stylesheet '%s'. Using default.", stylesheet_name);
-			setStyleSheet(gui::stylesheets::default_style_sheet);
+			apply_default_stylesheet();
 		}
 
 		gui::custom_stylesheet_active = true;
